@@ -682,8 +682,12 @@ class CalibrationStartView(APIView):
         if apt.get('status') != 'pending_calibration':
             return Response({'detail': '当前状态不允许开始校准'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if apt.get('has_precheck') and not apt.get('precheck_id'):
+        if not apt.get('has_precheck') or not apt.get('precheck_id'):
             return Response({'detail': '需要先完成前置检查'}, status=status.HTTP_400_BAD_REQUEST)
+
+        precheck = precheck_records_table.get(PrecheckRecordQuery.id == apt.get('precheck_id'))
+        if not precheck or not precheck.get('overall_result'):
+            return Response({'detail': '前置检查未通过，无法开始校准'}, status=status.HTTP_400_BAD_REQUEST)
 
         data = {
             **apt,
