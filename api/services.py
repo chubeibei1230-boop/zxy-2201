@@ -258,8 +258,10 @@ def get_warning_level(instrument_id):
     diff_days = (next_date - today).days
     if diff_days < 0:
         return 'overdue'
+    elif diff_days == 0:
+        return 'expired'
     elif diff_days <= WARNING_APPROACHING_DAYS:
-        return 'approaching' if diff_days >= 0 else 'expired'
+        return 'approaching'
     return None
 
 
@@ -558,4 +560,17 @@ def update_warning_status_from_appointment(appointment_id):
         update_data = {**warning, 'status': new_status}
         if new_status == 'unhandled':
             update_data['appointment_id'] = None
+        calibration_warnings_table.update(update_data, doc_ids=[warning.doc_id])
+
+
+def reset_warning_status_by_id(warning_id):
+    warning = calibration_warnings_table.get(CalibrationWarningQuery.id == int(warning_id))
+    if not warning:
+        return
+    if warning.get('status') == 'processing':
+        update_data = {
+            **warning,
+            'status': 'unhandled',
+            'appointment_id': None
+        }
         calibration_warnings_table.update(update_data, doc_ids=[warning.doc_id])

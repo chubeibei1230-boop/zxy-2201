@@ -156,6 +156,11 @@ def init_default_data():
          'purchase_date': (today - timedelta(days=90 + 30)).strftime('%Y-%m-%d'),
          'region_id': 2, 'location_id': 3, 'responsible_person_id': 2, 'rule_id': 5,
          'status': 'active'},
+        {'serial_number': 'PRS-2024-002', 'name': '精密数字压力表', 'category_id': 3,
+         'model': 'PG-300', 'manufacturer': '华仪',
+         'purchase_date': (today - timedelta(days=180)).strftime('%Y-%m-%d'),
+         'region_id': 1, 'location_id': 2, 'responsible_person_id': 1, 'rule_id': 3,
+         'status': 'active'},
     ]
     for inst in instruments:
         iid = generate_id(instruments_table)

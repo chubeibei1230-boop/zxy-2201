@@ -1084,10 +1084,14 @@ class AppointmentDetailView(APIView):
         if apt.get('status') != 'pending_submit':
             return Response({'detail': '仅草稿状态可删除'}, status=status.HTTP_400_BAD_REQUEST)
 
+        warning_id = apt.get('warning_id')
+        from_warning = apt.get('from_warning', False)
+
         doc_id = apt.doc_id
         apt_table.remove(doc_ids=[doc_id])
 
-        update_warning_status_from_appointment(int(pk))
+        if from_warning and warning_id:
+            reset_warning_status_by_id(warning_id)
 
         return Response({'message': '删除成功'})
 
