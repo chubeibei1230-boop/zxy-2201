@@ -2,6 +2,7 @@ import os
 import sys
 import django
 from pathlib import Path
+from datetime import datetime, timedelta
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
@@ -12,7 +13,8 @@ from api.database import (
     users_table, instrument_categories_table,
     experiment_regions_table, storage_locations_table,
     responsible_persons_table, calibration_rules_table,
-    instruments_table, generate_id, now_str
+    instruments_table, calibration_records_table,
+    calibration_appointments_table, generate_id, now_str
 )
 from api.auth_backend import hash_password
 
@@ -107,30 +109,52 @@ def init_default_data():
         calibration_rules_table.insert({'id': rid, **rule, 'created_at': now_str()})
     print(f'  - 创建 {len(rules)} 个校准规则')
 
+    today = datetime.now()
     instruments = [
         {'serial_number': 'BAL-2024-001', 'name': '梅特勒分析天平', 'category_id': 1,
-         'model': 'ME204E', 'manufacturer': '梅特勒托利多', 'purchase_date': '2023-01-15',
+         'model': 'ME204E', 'manufacturer': '梅特勒托利多',
+         'purchase_date': (today - timedelta(days=180 + 45)).strftime('%Y-%m-%d'),
          'region_id': 1, 'location_id': 1, 'responsible_person_id': 1, 'rule_id': 1,
          'status': 'active'},
         {'serial_number': 'BAL-2024-002', 'name': '赛多利斯电子天平', 'category_id': 1,
-         'model': 'BSA224S', 'manufacturer': '赛多利斯', 'purchase_date': '2023-03-20',
+         'model': 'BSA224S', 'manufacturer': '赛多利斯',
+         'purchase_date': (today - timedelta(days=180 + 10)).strftime('%Y-%m-%d'),
          'region_id': 2, 'location_id': 3, 'responsible_person_id': 2, 'rule_id': 1,
          'status': 'active'},
         {'serial_number': 'THM-2024-001', 'name': '精密玻璃温度计', 'category_id': 2,
-         'model': 'WNG-01', 'manufacturer': '上海精密仪器厂', 'purchase_date': '2022-11-10',
+         'model': 'WNG-01', 'manufacturer': '上海精密仪器厂',
+         'purchase_date': (today - timedelta(days=365 - 15)).strftime('%Y-%m-%d'),
          'region_id': 1, 'location_id': 1, 'responsible_person_id': 1, 'rule_id': 2,
          'status': 'active'},
         {'serial_number': 'PRS-2024-001', 'name': '数字压力表', 'category_id': 3,
-         'model': 'DPG-100', 'manufacturer': '福禄克', 'purchase_date': '2023-06-05',
+         'model': 'DPG-100', 'manufacturer': '福禄克',
+         'purchase_date': (today - timedelta(days=180 - 20)).strftime('%Y-%m-%d'),
          'region_id': 4, 'location_id': 5, 'responsible_person_id': 4, 'rule_id': 3,
          'status': 'active'},
         {'serial_number': 'SPT-2024-001', 'name': '紫外可见分光光度计', 'category_id': 4,
-         'model': 'UV-1800', 'manufacturer': '岛津', 'purchase_date': '2023-02-28',
+         'model': 'UV-1800', 'manufacturer': '岛津',
+         'purchase_date': (today - timedelta(days=60)).strftime('%Y-%m-%d'),
          'region_id': 2, 'location_id': 4, 'responsible_person_id': 2, 'rule_id': 4,
          'status': 'active'},
         {'serial_number': 'PHM-2024-001', 'name': '实验室pH计', 'category_id': 5,
-         'model': 'FE28', 'manufacturer': '梅特勒托利多', 'purchase_date': '2023-09-12',
+         'model': 'FE28', 'manufacturer': '梅特勒托利多',
+         'purchase_date': (today - timedelta(days=90 + 90)).strftime('%Y-%m-%d'),
          'region_id': 5, 'location_id': 5, 'responsible_person_id': 3, 'rule_id': 5,
+         'status': 'active'},
+        {'serial_number': 'BAL-2024-003', 'name': '奥豪斯分析天平', 'category_id': 1,
+         'model': 'AX224', 'manufacturer': '奥豪斯',
+         'purchase_date': (today - timedelta(days=180 + 60)).strftime('%Y-%m-%d'),
+         'region_id': 3, 'location_id': 2, 'responsible_person_id': 3, 'rule_id': 1,
+         'status': 'active'},
+        {'serial_number': 'THM-2024-002', 'name': '铂电阻温度计', 'category_id': 2,
+         'model': 'PT100', 'manufacturer': '德国JUMO',
+         'purchase_date': (today - timedelta(days=365 - 5)).strftime('%Y-%m-%d'),
+         'region_id': 4, 'location_id': 5, 'responsible_person_id': 4, 'rule_id': 2,
+         'status': 'active'},
+        {'serial_number': 'PHM-2024-002', 'name': '工业pH计', 'category_id': 5,
+         'model': 'PH700', 'manufacturer': '哈希',
+         'purchase_date': (today - timedelta(days=90 + 30)).strftime('%Y-%m-%d'),
+         'region_id': 2, 'location_id': 3, 'responsible_person_id': 2, 'rule_id': 5,
          'status': 'active'},
     ]
     for inst in instruments:

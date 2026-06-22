@@ -12,7 +12,10 @@ from .views import (
     AcceptanceView, AppointmentFilterView,
     PendingAuditListView, DeviationDistributionView,
     CalibrationEfficiencyView, SystemCheckView,
-    AppointmentListView, AppointmentDetailView
+    AppointmentListView, AppointmentDetailView,
+    WarningListView, WarningDetailView,
+    WarningCreateAppointmentView, WarningDetectView,
+    WarningDashboardView
 )
 
 router = DefaultRouter()
@@ -52,4 +55,10 @@ urlpatterns = [
     path('reports/calibration-efficiency/', CalibrationEfficiencyView.as_view(), name='report-efficiency'),
 
     path('system/check/', SystemCheckView.as_view(), name='system-check'),
+
+    path('warnings/', WarningListView.as_view(), name='warning-list'),
+    path('warnings/<int:pk>/', WarningDetailView.as_view(), name='warning-detail'),
+    path('warnings/create-appointment/', WarningCreateAppointmentView.as_view(), name='warning-create-appointment'),
+    path('warnings/detect/', WarningDetectView.as_view(), name='warning-detect'),
+    path('warnings/dashboard/', WarningDashboardView.as_view(), name='warning-dashboard'),
 ]

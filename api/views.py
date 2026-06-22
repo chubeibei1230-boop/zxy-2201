@@ -560,6 +560,9 @@ class AppointmentSubmitView(APIView):
         }
         doc_id = apt.doc_id
         calibration_appointments_table.update(data, doc_ids=[doc_id])
+
+        update_warning_status_from_appointment(appointment_id)
+
         return Response({'message': '提交审核成功', 'data': data})
 
 
@@ -658,6 +661,8 @@ class AuditView(APIView):
         doc_id = apt.doc_id
         calibration_appointments_table.update(apt_data, doc_ids=[doc_id])
 
+        update_warning_status_from_appointment(appointment_id)
+
         return Response({
             'message': '审核完成',
             'audit': audit_data,
@@ -695,6 +700,9 @@ class CalibrationStartView(APIView):
         }
         doc_id = apt.doc_id
         calibration_appointments_table.update(data, doc_ids=[doc_id])
+
+        update_warning_status_from_appointment(int(appointment_id))
+
         return Response({'message': '开始校准', 'data': data})
 
 
@@ -761,6 +769,8 @@ class CalibrationRecordView(APIView):
         doc_id = apt.doc_id
         calibration_appointments_table.update(apt_data, doc_ids=[doc_id])
 
+        update_warning_status_from_appointment(appointment_id)
+
         return Response({
             'message': '校准记录已保存',
             'calibration': data,
@@ -805,6 +815,8 @@ class AcceptanceView(APIView):
         }
         doc_id = apt.doc_id
         calibration_appointments_table.update(apt_data, doc_ids=[doc_id])
+
+        update_warning_status_from_appointment(appointment_id)
 
         return Response({
             'message': '验收完成',
@@ -1074,4 +1086,85 @@ class AppointmentDetailView(APIView):
 
         doc_id = apt.doc_id
         apt_table.remove(doc_ids=[doc_id])
+
+        update_warning_status_from_appointment(int(pk))
+
         return Response({'message': '删除成功'})
+
+
+# ==================== 预警与续检闭环 ====================
+
+class WarningListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        level = request.query_params.get('level')
+        warning_status = request.query_params.get('status')
+        region_id = request.query_params.get('region_id')
+        category_id = request.query_params.get('category_id')
+        responsible_person_id = request.query_params.get('responsible_person_id')
+
+        result = list_warnings(
+            level=level,
+            status=warning_status,
+            region_id=region_id,
+            category_id=category_id,
+            responsible_person_id=responsible_person_id
+        )
+        return Response(result)
+
+
+class WarningDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        info = get_warning_full_info(pk)
+        if not info:
+            return Response({'detail': '预警记录不存在'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(info)
+
+
+class WarningCreateAppointmentView(APIView):
+    permission_classes = [IsExperimenter]
+
+    def post(self, request):
+        serializer = WarningAppointmentSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        warning_id = serializer.validated_data['warning_id']
+        purpose = serializer.validated_data['purpose']
+
+        appointment_data, error = create_warning_appointment(
+            warning_id=warning_id,
+            username=request.user.username,
+            purpose=purpose
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'message': '续检申请创建成功',
+            'appointment': appointment_data
+        }, status=status.HTTP_201_CREATED)
+
+
+class WarningDetectView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        generated = run_warning_detection()
+        return Response({
+            'message': '预警检测完成',
+            'generated_count': len(generated),
+            'warnings': generated
+        })
+
+
+class WarningDashboardView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        dashboard = get_warning_dashboard()
+        return Response(dashboard)

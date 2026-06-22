@@ -9,7 +9,7 @@
       "department": "信息中心",
       "phone": "13800138000",
       "email": "admin@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:35"
     },
     "2": {
       "id": 2,
@@ -20,7 +20,7 @@
       "department": "物理学院",
       "phone": "13800138001",
       "email": "exp01@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     },
     "3": {
       "id": 3,
@@ -31,7 +31,7 @@
       "department": "化学学院",
       "phone": "13800138002",
       "email": "exp02@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     },
     "4": {
       "id": 4,
@@ -42,7 +42,7 @@
       "department": "设备管理处",
       "phone": "13800138003",
       "email": "audit01@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     },
     "5": {
       "id": 5,
@@ -53,7 +53,7 @@
       "department": "计量中心",
       "phone": "13800138004",
       "email": "cali01@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     },
     "6": {
       "id": 6,
@@ -64,7 +64,7 @@
       "department": "计量中心",
       "phone": "13800138005",
       "email": "cali02@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     }
   },
   "instrument_categories": {
@@ -73,42 +73,35 @@
       "name": "天平",
       "code": "BAL",
       "description": "各类分析天平、电子天平",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     },
     "2": {
       "id": 2,
       "name": "温度计",
       "code": "THM",
       "description": "玻璃温度计、铂电阻温度计",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:36"
     },
     "3": {
       "id": 3,
       "name": "压力表",
       "code": "PRS",
       "description": "精密压力表、数字压力表",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "4": {
       "id": 4,
       "name": "分光光度计",
       "code": "SPT",
       "description": "紫外/可见分光光度计",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "5": {
       "id": 5,
       "name": "酸度计",
       "code": "PHM",
       "description": "实验室pH计、离子计",
-      "created_at": "2026-06-21 19:40:51"
-    },
-    "6": {
-      "id": 6,
-      "name": "示波器",
-      "code": "OSC",
-      "description": "各类数字示波器",
-      "created_at": "2026-06-21 19:46:46"
+      "created_at": "2026-06-22 09:37:37"
     }
   },
   "experiment_regions": {
@@ -117,35 +110,35 @@
       "name": "物理实验中心",
       "code": "PHY",
       "department": "物理学院",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "2": {
       "id": 2,
       "name": "化学实验中心",
       "code": "CHEM",
       "department": "化学学院",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "3": {
       "id": 3,
       "name": "生物实验中心",
       "code": "BIO",
       "department": "生命科学学院",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "4": {
       "id": 4,
       "name": "材料实验室",
       "code": "MAT",
       "department": "材料科学与工程学院",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "5": {
       "id": 5,
       "name": "环境监测站",
       "code": "ENV",
       "department": "环境科学与工程学院",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     }
   },
   "storage_locations": {
@@ -156,7 +149,7 @@
       "building": "实验楼A栋",
       "floor": "1F",
       "room": "101",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "2": {
       "id": 2,
@@ -165,7 +158,7 @@
       "building": "实验楼A栋",
       "floor": "2F",
       "room": "201",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "3": {
       "id": 3,
@@ -174,7 +167,7 @@
       "building": "实验楼B栋",
       "floor": "1F",
       "room": "101",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "4": {
       "id": 4,
@@ -183,7 +176,7 @@
       "building": "实验楼B栋",
       "floor": "2F",
       "room": "201",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "5": {
       "id": 5,
@@ -192,7 +185,7 @@
       "building": "实验楼C栋",
       "floor": "3F",
       "room": "301",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     }
   },
   "responsible_persons": {
@@ -202,7 +195,7 @@
       "department": "物理学院",
       "phone": "13900139001",
       "email": "chen@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "2": {
       "id": 2,
@@ -210,7 +203,7 @@
       "department": "化学学院",
       "phone": "13900139002",
       "email": "liu@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "3": {
       "id": 3,
@@ -218,7 +211,7 @@
       "department": "生命科学学院",
       "phone": "13900139003",
       "email": "zhou@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "4": {
       "id": 4,
@@ -226,7 +219,7 @@
       "department": "材料学院",
       "phone": "13900139004",
       "email": "wu@school.edu.cn",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     }
   },
   "calibration_rules": {
@@ -238,7 +231,7 @@
       "tolerance": 0.0001,
       "standard_value": 100.0,
       "unit": "g",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "2": {
       "id": 2,
@@ -248,7 +241,7 @@
       "tolerance": 0.1,
       "standard_value": 25.0,
       "unit": "℃",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "3": {
       "id": 3,
@@ -258,7 +251,7 @@
       "tolerance": 0.01,
       "standard_value": 1.0,
       "unit": "MPa",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "4": {
       "id": 4,
@@ -268,7 +261,7 @@
       "tolerance": 0.005,
       "standard_value": 0.5,
       "unit": "Abs",
-      "created_at": "2026-06-21 19:40:51"
+      "created_at": "2026-06-22 09:37:37"
     },
     "5": {
       "id": 5,
@@ -278,7 +271,7 @@
       "tolerance": 0.02,
       "standard_value": 7.0,
       "unit": "pH",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
     }
   },
   "instruments": {
@@ -289,13 +282,13 @@
       "category_id": 1,
       "model": "ME204E",
       "manufacturer": "梅特勒托利多",
-      "purchase_date": "2023-01-15",
+      "purchase_date": "2025-11-09",
       "region_id": 1,
       "location_id": 1,
       "responsible_person_id": 1,
       "rule_id": 1,
       "status": "active",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
     },
     "2": {
       "id": 2,
@@ -304,13 +297,13 @@
       "category_id": 1,
       "model": "BSA224S",
       "manufacturer": "赛多利斯",
-      "purchase_date": "2023-03-20",
+      "purchase_date": "2025-12-14",
       "region_id": 2,
       "location_id": 3,
       "responsible_person_id": 2,
       "rule_id": 1,
       "status": "active",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
     },
     "3": {
       "id": 3,
@@ -319,13 +312,13 @@
       "category_id": 2,
       "model": "WNG-01",
       "manufacturer": "上海精密仪器厂",
-      "purchase_date": "2022-11-10",
+      "purchase_date": "2025-07-07",
       "region_id": 1,
       "location_id": 1,
       "responsible_person_id": 1,
       "rule_id": 2,
       "status": "active",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
     },
     "4": {
       "id": 4,
@@ -334,13 +327,13 @@
       "category_id": 3,
       "model": "DPG-100",
       "manufacturer": "福禄克",
-      "purchase_date": "2023-06-05",
+      "purchase_date": "2026-01-13",
       "region_id": 4,
       "location_id": 5,
       "responsible_person_id": 4,
       "rule_id": 3,
       "status": "active",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
     },
     "5": {
       "id": 5,
@@ -349,13 +342,13 @@
       "category_id": 4,
       "model": "UV-1800",
       "manufacturer": "岛津",
-      "purchase_date": "2023-02-28",
+      "purchase_date": "2026-04-23",
       "region_id": 2,
       "location_id": 4,
       "responsible_person_id": 2,
       "rule_id": 4,
       "status": "active",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
     },
     "6": {
       "id": 6,
@@ -364,105 +357,186 @@
       "category_id": 5,
       "model": "FE28",
       "manufacturer": "梅特勒托利多",
-      "purchase_date": "2023-09-12",
+      "purchase_date": "2025-12-24",
       "region_id": 5,
       "location_id": 5,
       "responsible_person_id": 3,
       "rule_id": 5,
       "status": "active",
-      "created_at": "2026-06-21 19:40:52"
+      "created_at": "2026-06-22 09:37:37"
+    },
+    "7": {
+      "id": 7,
+      "serial_number": "BAL-2024-003",
+      "name": "奥豪斯分析天平",
+      "category_id": 1,
+      "model": "AX224",
+      "manufacturer": "奥豪斯",
+      "purchase_date": "2025-10-25",
+      "region_id": 3,
+      "location_id": 2,
+      "responsible_person_id": 3,
+      "rule_id": 1,
+      "status": "active",
+      "created_at": "2026-06-22 09:37:37"
+    },
+    "8": {
+      "id": 8,
+      "serial_number": "THM-2024-002",
+      "name": "铂电阻温度计",
+      "category_id": 2,
+      "model": "PT100",
+      "manufacturer": "德国JUMO",
+      "purchase_date": "2025-06-27",
+      "region_id": 4,
+      "location_id": 5,
+      "responsible_person_id": 4,
+      "rule_id": 2,
+      "status": "active",
+      "created_at": "2026-06-22 09:37:37"
+    },
+    "9": {
+      "id": 9,
+      "serial_number": "PHM-2024-002",
+      "name": "工业pH计",
+      "category_id": 5,
+      "model": "PH700",
+      "manufacturer": "哈希",
+      "purchase_date": "2026-02-22",
+      "region_id": 2,
+      "location_id": 3,
+      "responsible_person_id": 2,
+      "rule_id": 5,
+      "status": "active",
+      "created_at": "2026-06-22 09:37:37"
     }
   },
   "calibration_appointments": {
     "1": {
       "id": 1,
-      "appointment_no": "2606210001",
+      "appointment_no": "2606220001",
       "instrument_id": 3,
       "applicant": "张实验员",
       "department": "物理学院",
       "purpose": "日常维护校准，确保仪器精度",
-      "expected_date": "2026-06-22",
+      "expected_date": "2026-06-23",
       "status": "closed",
       "has_precheck": true,
       "precheck_id": 1,
       "remark": "",
-      "created_at": "2026-06-21 22:49:45",
-      "submitted_at": "2026-06-21 22:49:45"
+      "created_at": "2026-06-22 09:37:40",
+      "submitted_at": "2026-06-22 09:37:40"
     },
     "2": {
       "id": 2,
-      "appointment_no": "2606210002",
+      "appointment_no": "2606220002",
       "instrument_id": 2,
       "applicant": "张实验员",
       "department": "物理学院",
       "purpose": "测试重复预约1",
-      "expected_date": "2026-06-22",
+      "expected_date": "2026-06-23",
       "status": "pending_audit",
       "has_precheck": true,
       "precheck_id": 2,
       "remark": "",
-      "created_at": "2026-06-21 22:49:46",
-      "submitted_at": "2026-06-21 22:49:46"
+      "created_at": "2026-06-22 09:37:40",
+      "submitted_at": "2026-06-22 09:37:40"
     },
     "3": {
       "id": 3,
-      "appointment_no": "2606210003",
+      "appointment_no": "2606220003",
       "instrument_id": 5,
       "applicant": "张实验员",
       "department": "物理学院",
       "purpose": "测试前置检查必填",
-      "expected_date": "2026-06-24",
+      "expected_date": "2026-06-25",
       "status": "pending_submit",
       "has_precheck": false,
       "precheck_id": null,
       "remark": "",
-      "created_at": "2026-06-21 22:49:46",
+      "created_at": "2026-06-22 09:37:41",
       "submitted_at": null
     },
     "4": {
       "id": 4,
-      "appointment_no": "2606210004",
+      "appointment_no": "2606220004",
       "instrument_id": 5,
       "applicant": "张实验员",
       "department": "物理学院",
       "purpose": "测试驳回状态",
-      "expected_date": "2026-06-23",
+      "expected_date": "2026-06-24",
       "status": "rejected",
       "has_precheck": true,
       "precheck_id": 3,
       "remark": "",
-      "created_at": "2026-06-21 22:49:46",
-      "submitted_at": "2026-06-21 22:49:46"
+      "created_at": "2026-06-22 09:37:41",
+      "submitted_at": "2026-06-22 09:37:41"
     },
     "5": {
       "id": 5,
-      "appointment_no": "2606210005",
+      "appointment_no": "2606220005",
       "instrument_id": 6,
       "applicant": "张实验员",
       "department": "物理学院",
       "purpose": "测试偏差状态重复预约",
-      "expected_date": "2026-06-25",
+      "expected_date": "2026-06-26",
       "status": "deviation_pending",
       "has_precheck": true,
       "precheck_id": 4,
       "remark": "",
-      "created_at": "2026-06-21 22:49:46",
-      "submitted_at": "2026-06-21 22:49:46"
+      "created_at": "2026-06-22 09:37:41",
+      "submitted_at": "2026-06-22 09:37:41"
     },
     "6": {
       "id": 6,
-      "appointment_no": "2606210006",
-      "instrument_id": 5,
+      "appointment_no": "2606220006",
+      "instrument_id": 7,
       "applicant": "张实验员",
       "department": "物理学院",
-      "purpose": "检查前检拦截",
-      "expected_date": "2026-06-26",
+      "purpose": "仪器到期预警触发的续检申请，确保仪器精度",
+      "expected_date": "2026-06-23",
       "status": "pending_submit",
       "has_precheck": false,
       "precheck_id": null,
-      "remark": "",
-      "created_at": "2026-06-21 23:01:28",
-      "submitted_at": null
+      "remark": "由到期预警触发的续检申请",
+      "created_at": "2026-06-22 09:37:42",
+      "submitted_at": null,
+      "from_warning": true,
+      "warning_id": 4
+    },
+    "7": {
+      "id": 7,
+      "appointment_no": "2606220007",
+      "instrument_id": 1,
+      "applicant": "张实验员",
+      "department": "物理学院",
+      "purpose": "第一次申请",
+      "expected_date": "2026-06-23",
+      "status": "pending_submit",
+      "has_precheck": false,
+      "precheck_id": null,
+      "remark": "由到期预警触发的续检申请",
+      "created_at": "2026-06-22 09:37:43",
+      "submitted_at": null,
+      "from_warning": true,
+      "warning_id": 1
+    },
+    "8": {
+      "id": 8,
+      "appointment_no": "2606220008",
+      "instrument_id": 9,
+      "applicant": "张实验员",
+      "department": "物理学院",
+      "purpose": "预警触发的完整闭环测试",
+      "expected_date": "2026-06-23",
+      "status": "closed",
+      "has_precheck": true,
+      "precheck_id": 5,
+      "remark": "由到期预警触发的续检申请",
+      "created_at": "2026-06-22 09:37:43",
+      "submitted_at": "2026-06-22 09:37:43",
+      "from_warning": true,
+      "warning_id": 6
     }
   },
   "precheck_records": {
@@ -470,7 +544,7 @@
       "id": 1,
       "appointment_id": 1,
       "experimenter": "张实验员",
-      "check_date": "2026-06-21",
+      "check_date": "2026-06-22",
       "items": [
         {
           "name": "外观检查",
@@ -485,13 +559,13 @@
       ],
       "overall_result": true,
       "remark": "前置检查通过",
-      "created_at": "2026-06-21 22:49:45"
+      "created_at": "2026-06-22 09:37:40"
     },
     "2": {
       "id": 2,
       "appointment_id": 2,
       "experimenter": "张实验员",
-      "check_date": "2026-06-21",
+      "check_date": "2026-06-22",
       "items": [
         {
           "name": "外观检查",
@@ -506,13 +580,13 @@
       ],
       "overall_result": true,
       "remark": "检查通过",
-      "created_at": "2026-06-21 22:49:46"
+      "created_at": "2026-06-22 09:37:40"
     },
     "3": {
       "id": 3,
       "appointment_id": 4,
       "experimenter": "张实验员",
-      "check_date": "2026-06-21",
+      "check_date": "2026-06-22",
       "items": [
         {
           "name": "外观检查",
@@ -522,13 +596,13 @@
       ],
       "overall_result": true,
       "remark": "检查通过",
-      "created_at": "2026-06-21 22:49:46"
+      "created_at": "2026-06-22 09:37:41"
     },
     "4": {
       "id": 4,
       "appointment_id": 5,
       "experimenter": "张实验员",
-      "check_date": "2026-06-21",
+      "check_date": "2026-06-22",
       "items": [
         {
           "name": "外观检查",
@@ -538,23 +612,28 @@
       ],
       "overall_result": true,
       "remark": "检查通过",
-      "created_at": "2026-06-21 22:49:46"
+      "created_at": "2026-06-22 09:37:41"
     },
     "5": {
       "id": 5,
-      "appointment_id": 6,
+      "appointment_id": 8,
       "experimenter": "张实验员",
-      "check_date": "2026-06-21",
+      "check_date": "2026-06-22",
       "items": [
         {
-          "name": "外观",
+          "name": "外观检查",
+          "result": true,
+          "remark": "正常"
+        },
+        {
+          "name": "电源检查",
           "result": true,
           "remark": "正常"
         }
       ],
       "overall_result": true,
-      "remark": "通过",
-      "created_at": "2026-06-21 23:01:28"
+      "remark": "检查通过",
+      "created_at": "2026-06-22 09:37:43"
     }
   },
   "audit_records": {
@@ -564,7 +643,7 @@
       "auditor": "王审核",
       "result": "approved",
       "opinion": "材料齐全，同意校准",
-      "audit_date": "2026-06-21 22:49:45"
+      "audit_date": "2026-06-22 09:37:40"
     },
     "2": {
       "id": 2,
@@ -572,7 +651,7 @@
       "auditor": "王审核",
       "result": "rejected",
       "opinion": "材料不齐全，予以驳回",
-      "audit_date": "2026-06-21 22:49:46"
+      "audit_date": "2026-06-22 09:37:41"
     },
     "3": {
       "id": 3,
@@ -580,7 +659,15 @@
       "auditor": "王审核",
       "result": "approved",
       "opinion": "通过",
-      "audit_date": "2026-06-21 22:49:46"
+      "audit_date": "2026-06-22 09:37:41"
+    },
+    "4": {
+      "id": 4,
+      "appointment_id": 8,
+      "auditor": "王审核",
+      "result": "approved",
+      "opinion": "同意续检校准",
+      "audit_date": "2026-06-22 09:37:43"
     }
   },
   "calibration_records": {
@@ -588,8 +675,8 @@
       "id": 1,
       "appointment_id": 1,
       "calibrator": "赵校准",
-      "start_date": "2026-06-21 22:49:45",
-      "end_date": "2026-06-21 22:49:45",
+      "start_date": "2026-06-22 09:37:40",
+      "end_date": "2026-06-22 09:37:40",
       "standard_value": 100.0,
       "measured_value": 99.9999,
       "error_value": -0.00010000000000331966,
@@ -601,14 +688,14 @@
       "calibration_method": "砝码比较法",
       "conclusion": "校准结果符合要求",
       "closing_remark": "仪器状态良好",
-      "created_at": "2026-06-21 22:49:45"
+      "created_at": "2026-06-22 09:37:40"
     },
     "2": {
       "id": 2,
       "appointment_id": 5,
       "calibrator": "赵校准",
-      "start_date": "2026-06-21 22:49:46",
-      "end_date": "2026-06-21 22:49:46",
+      "start_date": "2026-06-22 09:37:41",
+      "end_date": "2026-06-22 09:37:41",
       "standard_value": 100.0,
       "measured_value": 95.0,
       "error_value": -5.0,
@@ -618,4 +705,108 @@
       "environment_temp": 23.5,
       "environment_humidity": 45.0,
       "calibration_method": "标准方法",
-      "co                                                                                                                                                                                                                                                                                                                                                                             
+      "conclusion": "偏差较大，待处理",
+      "closing_remark": "偏差待处理",
+      "created_at": "2026-06-22 09:37:41"
+    },
+    "3": {
+      "id": 3,
+      "appointment_id": 8,
+      "calibrator": "赵校准",
+      "start_date": "2026-06-22 09:37:43",
+      "end_date": "2026-06-22 09:37:43",
+      "standard_value": 100.0,
+      "measured_value": 100.0,
+      "error_value": 0.0,
+      "deviation_level": "none",
+      "accessory_status": "normal",
+      "accessory_remark": "",
+      "environment_temp": 23.5,
+      "environment_humidity": 45.0,
+      "calibration_method": "标准方法",
+      "conclusion": "校准合格",
+      "closing_remark": "仪器状态良好",
+      "created_at": "2026-06-22 09:37:43"
+    }
+  },
+  "acceptance_records": {
+    "1": {
+      "id": 1,
+      "appointment_id": 1,
+      "acceptor": "张实验员",
+      "result": true,
+      "opinion": "校准合格，同意验收",
+      "acceptance_date": "2026-06-22 09:37:40"
+    },
+    "2": {
+      "id": 2,
+      "appointment_id": 8,
+      "acceptor": "张实验员",
+      "result": true,
+      "opinion": "校准合格，同意验收",
+      "acceptance_date": "2026-06-22 09:37:43"
+    }
+  },
+  "calibration_warnings": {
+    "1": {
+      "id": 1,
+      "instrument_id": 1,
+      "level": "overdue",
+      "warning_date": "2026-06-22",
+      "next_calibration_date": "2026-05-08",
+      "status": "processing",
+      "appointment_id": 7,
+      "created_at": "2026-06-22 09:37:41"
+    },
+    "2": {
+      "id": 2,
+      "instrument_id": 2,
+      "level": "overdue",
+      "warning_date": "2026-06-22",
+      "next_calibration_date": "2026-06-12",
+      "status": "unhandled",
+      "appointment_id": null,
+      "created_at": "2026-06-22 09:37:41"
+    },
+    "3": {
+      "id": 3,
+      "instrument_id": 4,
+      "level": "approaching",
+      "warning_date": "2026-06-22",
+      "next_calibration_date": "2026-07-12",
+      "status": "unhandled",
+      "appointment_id": null,
+      "created_at": "2026-06-22 09:37:41"
+    },
+    "4": {
+      "id": 4,
+      "instrument_id": 7,
+      "level": "overdue",
+      "warning_date": "2026-06-22",
+      "next_calibration_date": "2026-04-23",
+      "status": "processing",
+      "appointment_id": 6,
+      "created_at": "2026-06-22 09:37:41"
+    },
+    "5": {
+      "id": 5,
+      "instrument_id": 8,
+      "level": "approaching",
+      "warning_date": "2026-06-22",
+      "next_calibration_date": "2026-06-27",
+      "status": "unhandled",
+      "appointment_id": null,
+      "created_at": "2026-06-22 09:37:41"
+    },
+    "6": {
+      "id": 6,
+      "instrument_id": 9,
+      "level": "overdue",
+      "warning_date": "2026-06-22",
+      "next_calibration_date": "2026-05-23",
+      "status": "handled",
+      "appointment_id": 8,
+      "created_at": "2026-06-22 09:37:41"
+    }
+  }
+}

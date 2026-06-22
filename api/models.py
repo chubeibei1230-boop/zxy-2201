@@ -37,3 +37,15 @@ ACCESSORY_STATUS_CHOICES = (
     ('missing', '缺失'),
     ('replaced', '已更换'),
 )
+
+WARNING_LEVEL_CHOICES = (
+    ('approaching', '临近到期'),
+    ('expired', '已到期'),
+    ('overdue', '超期未处理'),
+)
+
+WARNING_STATUS_CHOICES = (
+    ('unhandled', '未处理'),
+    ('processing', '处理中'),
+    ('handled', '已处理'),
+)

@@ -19,6 +19,7 @@ precheck_records_table = db.table('precheck_records')
 audit_records_table = db.table('audit_records')
 calibration_records_table = db.table('calibration_records')
 acceptance_records_table = db.table('acceptance_records')
+calibration_warnings_table = db.table('calibration_warnings')
 
 UserQuery = Query()
 InstrumentCategoryQuery = Query()
@@ -32,6 +33,7 @@ PrecheckRecordQuery = Query()
 AuditRecordQuery = Query()
 CalibrationRecordQuery = Query()
 AcceptanceRecordQuery = Query()
+CalibrationWarningQuery = Query()
 
 
 def generate_id(table):

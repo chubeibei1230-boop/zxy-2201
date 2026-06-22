@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     ROLE_CHOICES, STATUS_CHOICES, AUDIT_RESULT_CHOICES,
-    DEVIATION_LEVEL_CHOICES, ACCESSORY_STATUS_CHOICES
+    DEVIATION_LEVEL_CHOICES, ACCESSORY_STATUS_CHOICES,
+    WARNING_LEVEL_CHOICES, WARNING_STATUS_CHOICES
 )
 
 
@@ -181,3 +182,16 @@ class StatusTransitionSerializer(serializers.Serializer):
     appointment_id = serializers.IntegerField()
     target_status = serializers.ChoiceField(choices=STATUS_CHOICES)
     remark = serializers.CharField(required=False, allow_blank=True)
+
+
+class WarningAppointmentSerializer(serializers.Serializer):
+    warning_id = serializers.IntegerField()
+    purpose = serializers.CharField(max_length=500)
+
+
+class WarningFilterSerializer(serializers.Serializer):
+    level = serializers.ChoiceField(choices=WARNING_LEVEL_CHOICES, required=False)
+    status = serializers.ChoiceField(choices=WARNING_STATUS_CHOICES, required=False)
+    region_id = serializers.IntegerField(required=False)
+    category_id = serializers.IntegerField(required=False)
+    responsible_person_id = serializers.IntegerField(required=False)
