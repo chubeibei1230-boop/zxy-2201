@@ -13,6 +13,8 @@ from .database import (
     calibration_rules_table,
     acceptance_records_table,
     calibration_warnings_table,
+    anomaly_tasks_table,
+    anomaly_process_records_table,
     users_table,
     CalibrationAppointmentQuery,
     InstrumentQuery,
@@ -26,6 +28,8 @@ from .database import (
     CalibrationRuleQuery,
     PrecheckRecordQuery,
     CalibrationWarningQuery,
+    AnomalyTaskQuery,
+    AnomalyProcessRecordQuery,
     UserQuery,
     now_str, today_str, generate_id
 )
@@ -574,3 +578,543 @@ def reset_warning_status_by_id(warning_id):
             'appointment_id': None
         }
         calibration_warnings_table.update(update_data, doc_ids=[warning.doc_id])
+
+
+def generate_anomaly_no():
+    today = datetime.now().strftime('%y%m%d')
+    all_anomalies = anomaly_tasks_table.all()
+    today_anomalies = [a for a in all_anomalies if a.get('anomaly_no', '').startswith('AY' + today)]
+    seq = len(today_anomalies) + 1
+    return f'AY{today}{seq:04d}'
+
+
+def create_anomaly_task(appointment_id, anomaly_type, anomaly_level, title, description='',
+                        calibration_record_id=None, acceptance_record_id=None, discoverer=''):
+    apt = apt_table.get(CalibrationAppointmentQuery.id == int(appointment_id))
+    if not apt:
+        return None, '校准预约不存在'
+
+    inst = inst_table.get(InstrumentQuery.id == apt.get('instrument_id'))
+    if not inst:
+        return None, '仪器不存在'
+
+    existing = anomaly_tasks_table.search(
+        (AnomalyTaskQuery.appointment_id == int(appointment_id)) &
+        (AnomalyTaskQuery.anomaly_type == anomaly_type) &
+        (AnomalyTaskQuery.status.one_of(['registered', 'analyzing', 'rectifying', 'reviewing']))
+    )
+    if existing:
+        return existing[0], None
+
+    anomaly_id = generate_id(anomaly_tasks_table)
+    anomaly_no = generate_anomaly_no()
+
+    anomaly_data = {
+        'id': anomaly_id,
+        'anomaly_no': anomaly_no,
+        'appointment_id': int(appointment_id),
+        'instrument_id': apt.get('instrument_id'),
+        'calibration_record_id': calibration_record_id,
+        'acceptance_record_id': acceptance_record_id,
+        'anomaly_type': anomaly_type,
+        'anomaly_level': anomaly_level,
+        'title': title,
+        'description': description,
+        'status': 'registered',
+        'responsible_person_id': inst.get('responsible_person_id'),
+        'discoverer': discoverer,
+        'discovered_at': now_str(),
+        'closed_at': None,
+        'created_at': now_str()
+    }
+    anomaly_tasks_table.insert(anomaly_data)
+
+    record_id = generate_id(anomaly_process_records_table)
+    process_record = {
+        'id': record_id,
+        'anomaly_task_id': anomaly_id,
+        'step': 'register',
+        'operator': discoverer or 'system',
+        'operator_role': 'system',
+        'content': f'异常登记：{title}',
+        'result': '已登记',
+        'remark': description,
+        'operated_at': now_str()
+    }
+    anomaly_process_records_table.insert(process_record)
+
+    return anomaly_data, None
+
+
+def auto_create_anomaly_from_calibration(calibration_record_id):
+    cal_record = cr_table.get(CalibrationRecordQuery.id == int(calibration_record_id))
+    if not cal_record:
+        return
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == cal_record.get('appointment_id'))
+    if not apt:
+        return
+
+    inst = inst_table.get(InstrumentQuery.id == apt.get('instrument_id'))
+    inst_name = inst.get('name', '') if inst else ''
+
+    deviation_level = cal_record.get('deviation_level', 'none')
+    accessory_status = cal_record.get('accessory_status', 'normal')
+
+    if deviation_level in ['minor', 'major', 'critical']:
+        level_map = {
+            'minor': 'minor',
+            'major': 'major',
+            'critical': 'critical'
+        }
+        level_label = {
+            'minor': '轻微',
+            'major': '严重',
+            'critical': '重大'
+        }
+        create_anomaly_task(
+            appointment_id=cal_record.get('appointment_id'),
+            anomaly_type='deviation',
+            anomaly_level=level_map.get(deviation_level, 'minor'),
+            title=f'{inst_name}校准结果{level_label.get(deviation_level, "")}偏差',
+            description=f'标准值：{cal_record.get("standard_value")}，测量值：{cal_record.get("measured_value")}，误差：{cal_record.get("error_value")}',
+            calibration_record_id=cal_record.get('id'),
+            discoverer=cal_record.get('calibrator', '')
+        )
+
+    if accessory_status == 'damaged':
+        create_anomaly_task(
+            appointment_id=cal_record.get('appointment_id'),
+            anomaly_type='accessory_damaged',
+            anomaly_level='major',
+            title=f'{inst_name}配件损坏',
+            description=cal_record.get('accessory_remark', '配件损坏'),
+            calibration_record_id=cal_record.get('id'),
+            discoverer=cal_record.get('calibrator', '')
+        )
+
+    if accessory_status == 'missing':
+        create_anomaly_task(
+            appointment_id=cal_record.get('appointment_id'),
+            anomaly_type='accessory_missing',
+            anomaly_level='major',
+            title=f'{inst_name}配件缺失',
+            description=cal_record.get('accessory_remark', '配件缺失'),
+            calibration_record_id=cal_record.get('id'),
+            discoverer=cal_record.get('calibrator', '')
+        )
+
+
+def auto_create_anomaly_from_acceptance(acceptance_record_id):
+    acc_record = acceptance_records_table.get(AcceptanceRecordQuery.id == int(acceptance_record_id))
+    if not acc_record:
+        return
+
+    if acc_record.get('result') == True:
+        return
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == acc_record.get('appointment_id'))
+    if not apt:
+        return
+
+    inst = inst_table.get(InstrumentQuery.id == apt.get('instrument_id'))
+    inst_name = inst.get('name', '') if inst else ''
+
+    create_anomaly_task(
+        appointment_id=acc_record.get('appointment_id'),
+        anomaly_type='acceptance_failed',
+        anomaly_level='major',
+        title=f'{inst_name}验收不通过',
+        description=acc_record.get('opinion', '验收不通过'),
+        acceptance_record_id=acc_record.get('id'),
+        discoverer=acc_record.get('acceptor', '')
+    )
+
+
+def get_anomaly_full_info(anomaly_id):
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    if not anomaly:
+        return None
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == anomaly.get('appointment_id'))
+    inst = inst_table.get(InstrumentQuery.id == anomaly.get('instrument_id'))
+    category = instrument_categories_table.get(InstrumentCategoryQuery.id == inst.get('category_id')) if inst else None
+    region = experiment_regions_table.get(ExperimentRegionQuery.id == inst.get('region_id')) if inst else None
+    location = storage_locations_table.get(StorageLocationQuery.id == inst.get('location_id')) if inst else None
+    person = responsible_persons_table.get(ResponsiblePersonQuery.id == anomaly.get('responsible_person_id')) if anomaly.get('responsible_person_id') else None
+
+    cal_record = None
+    if anomaly.get('calibration_record_id'):
+        cal_record = cr_table.get(CalibrationRecordQuery.id == anomaly.get('calibration_record_id'))
+
+    acc_record = None
+    if anomaly.get('acceptance_record_id'):
+        acc_record = acceptance_records_table.get(AcceptanceRecordQuery.id == anomaly.get('acceptance_record_id'))
+
+    process_records = anomaly_process_records_table.search(
+        AnomalyProcessRecordQuery.anomaly_task_id == int(anomaly_id)
+    )
+    process_records.sort(key=lambda x: x.get('operated_at', ''))
+
+    type_label = {
+        'deviation': '校准偏差',
+        'accessory_damaged': '配件损坏',
+        'accessory_missing': '配件缺失',
+        'acceptance_failed': '验收不通过'
+    }.get(anomaly.get('anomaly_type'), anomaly.get('anomaly_type'))
+
+    level_label = {
+        'minor': '轻微',
+        'major': '严重',
+        'critical': '重大'
+    }.get(anomaly.get('anomaly_level'), anomaly.get('anomaly_level'))
+
+    status_label = {
+        'registered': '已登记',
+        'analyzing': '原因分析中',
+        'rectifying': '整改中',
+        'reviewing': '复核中',
+        'closed': '已结案'
+    }.get(anomaly.get('status'), anomaly.get('status'))
+
+    return {
+        **anomaly,
+        'anomaly_type_label': type_label,
+        'anomaly_level_label': level_label,
+        'status_label': status_label,
+        'appointment': {**apt} if apt else None,
+        'instrument': {**inst} if inst else None,
+        'category': {**category} if category else None,
+        'region': {**region} if region else None,
+        'location': {**location} if location else None,
+        'responsible_person': {**person} if person else None,
+        'calibration_record': {**cal_record} if cal_record else None,
+        'acceptance_record': {**acc_record} if acc_record else None,
+        'process_records': [{**r} for r in process_records]
+    }
+
+
+def list_anomaly_tasks(status=None, anomaly_level=None, anomaly_type=None,
+                       region_id=None, category_id=None, responsible_person_id=None,
+                       instrument_id=None, appointment_id=None):
+    anomalies = anomaly_tasks_table.all()
+
+    if status:
+        anomalies = [a for a in anomalies if a.get('status') == status]
+    if anomaly_level:
+        anomalies = [a for a in anomalies if a.get('anomaly_level') == anomaly_level]
+    if anomaly_type:
+        anomalies = [a for a in anomalies if a.get('anomaly_type') == anomaly_type]
+    if instrument_id:
+        anomalies = [a for a in anomalies if a.get('instrument_id') == int(instrument_id)]
+    if appointment_id:
+        anomalies = [a for a in anomalies if a.get('appointment_id') == int(appointment_id)]
+
+    if region_id:
+        region_id = int(region_id)
+        filtered = []
+        for a in anomalies:
+            inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+            if inst and inst.get('region_id') == region_id:
+                filtered.append(a)
+        anomalies = filtered
+
+    if category_id:
+        category_id = int(category_id)
+        filtered = []
+        for a in anomalies:
+            inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+            if inst and inst.get('category_id') == category_id:
+                filtered.append(a)
+        anomalies = filtered
+
+    if responsible_person_id:
+        responsible_person_id = int(responsible_person_id)
+        filtered = []
+        for a in anomalies:
+            inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+            if inst and inst.get('responsible_person_id') == responsible_person_id:
+                filtered.append(a)
+        anomalies = filtered
+
+    result = []
+    for a in anomalies:
+        info = get_anomaly_full_info(a.get('id'))
+        if info:
+            result.append(info)
+
+    result.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    return result
+
+
+def anomaly_do_analysis(anomaly_id, cause_analysis, root_cause='', operator='', operator_role=''):
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    if not anomaly:
+        return None, '异常任务不存在'
+
+    if anomaly.get('status') not in ['registered']:
+        return None, '当前状态不允许进行原因分析'
+
+    new_status = 'analyzing'
+    anomaly_update = {
+        **anomaly,
+        'status': new_status
+    }
+    anomaly_tasks_table.update(anomaly_update, doc_ids=[anomaly.doc_id])
+
+    record_id = generate_id(anomaly_process_records_table)
+    process_record = {
+        'id': record_id,
+        'anomaly_task_id': int(anomaly_id),
+        'step': 'analysis',
+        'operator': operator,
+        'operator_role': operator_role,
+        'content': cause_analysis,
+        'result': root_cause or '已完成原因分析',
+        'remark': root_cause,
+        'operated_at': now_str()
+    }
+    anomaly_process_records_table.insert(process_record)
+
+    return get_anomaly_full_info(anomaly_id), None
+
+
+def anomaly_do_rectification(anomaly_id, rectification_measures, responsible_person='',
+                             completion_deadline=None, operator='', operator_role=''):
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    if not anomaly:
+        return None, '异常任务不存在'
+
+    if anomaly.get('status') not in ['analyzing']:
+        return None, '当前状态不允许进行整改'
+
+    new_status = 'rectifying'
+    anomaly_update = {
+        **anomaly,
+        'status': new_status
+    }
+    anomaly_tasks_table.update(anomaly_update, doc_ids=[anomaly.doc_id])
+
+    record_id = generate_id(anomaly_process_records_table)
+    process_record = {
+        'id': record_id,
+        'anomaly_task_id': int(anomaly_id),
+        'step': 'rectification',
+        'operator': operator,
+        'operator_role': operator_role,
+        'content': rectification_measures,
+        'result': f'责任人：{responsible_person}' if responsible_person else '已制定整改措施',
+        'remark': f'完成期限：{completion_deadline}' if completion_deadline else '',
+        'operated_at': now_str()
+    }
+    anomaly_process_records_table.insert(process_record)
+
+    return get_anomaly_full_info(anomaly_id), None
+
+
+def anomaly_do_review(anomaly_id, review_opinion, review_result, operator='', operator_role=''):
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    if not anomaly:
+        return None, '异常任务不存在'
+
+    if anomaly.get('status') not in ['rectifying']:
+        return None, '当前状态不允许进行复核'
+
+    if review_result == 'pass':
+        new_status = 'reviewing'
+        result_text = '复核通过'
+    elif review_result == 'reject':
+        new_status = 'analyzing'
+        result_text = '复核退回，需重新分析'
+    else:
+        return None, '无效的复核结果'
+
+    anomaly_update = {
+        **anomaly,
+        'status': new_status
+    }
+    anomaly_tasks_table.update(anomaly_update, doc_ids=[anomaly.doc_id])
+
+    record_id = generate_id(anomaly_process_records_table)
+    process_record = {
+        'id': record_id,
+        'anomaly_task_id': int(anomaly_id),
+        'step': 'review',
+        'operator': operator,
+        'operator_role': operator_role,
+        'content': review_opinion,
+        'result': result_text,
+        'remark': '',
+        'operated_at': now_str()
+    }
+    anomaly_process_records_table.insert(process_record)
+
+    return get_anomaly_full_info(anomaly_id), None
+
+
+def anomaly_do_close(anomaly_id, conclusion, closing_remark='', operator='', operator_role=''):
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    if not anomaly:
+        return None, '异常任务不存在'
+
+    if anomaly.get('status') not in ['reviewing']:
+        return None, '当前状态不允许结案'
+
+    new_status = 'closed'
+    anomaly_update = {
+        **anomaly,
+        'status': new_status,
+        'closed_at': now_str()
+    }
+    anomaly_tasks_table.update(anomaly_update, doc_ids=[anomaly.doc_id])
+
+    record_id = generate_id(anomaly_process_records_table)
+    process_record = {
+        'id': record_id,
+        'anomaly_task_id': int(anomaly_id),
+        'step': 'close',
+        'operator': operator,
+        'operator_role': operator_role,
+        'content': conclusion,
+        'result': '已结案',
+        'remark': closing_remark,
+        'operated_at': now_str()
+    }
+    anomaly_process_records_table.insert(process_record)
+
+    sync_appointment_status_from_anomaly(int(anomaly_id))
+
+    return get_anomaly_full_info(anomaly_id), None
+
+
+def sync_appointment_status_from_anomaly(anomaly_id):
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    if not anomaly:
+        return
+
+    apt_id = anomaly.get('appointment_id')
+    if not apt_id:
+        return
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == apt_id)
+    if not apt:
+        return
+
+    open_anomalies = anomaly_tasks_table.search(
+        (AnomalyTaskQuery.appointment_id == apt_id) &
+        (AnomalyTaskQuery.status.one_of(['registered', 'analyzing', 'rectifying', 'reviewing']))
+    )
+
+    if not open_anomalies:
+        if apt.get('status') == 'deviation_pending':
+            apt_update = {
+                **apt,
+                'status': 'pending_acceptance'
+            }
+            apt_table.update(apt_update, doc_ids=[apt.doc_id])
+            update_warning_status_from_appointment(apt_id)
+
+
+def get_anomaly_dashboard():
+    all_anomalies = anomaly_tasks_table.all()
+
+    summary = {
+        'total': len(all_anomalies),
+        'pending': len([a for a in all_anomalies if a.get('status') in ['registered', 'analyzing', 'rectifying', 'reviewing']]),
+        'closed': len([a for a in all_anomalies if a.get('status') == 'closed']),
+        'registered': len([a for a in all_anomalies if a.get('status') == 'registered']),
+        'analyzing': len([a for a in all_anomalies if a.get('status') == 'analyzing']),
+        'rectifying': len([a for a in all_anomalies if a.get('status') == 'rectifying']),
+        'reviewing': len([a for a in all_anomalies if a.get('status') == 'reviewing']),
+    }
+
+    by_type = {}
+    by_level = {}
+    by_region = {}
+    by_category = {}
+
+    for a in all_anomalies:
+        atype = a.get('anomaly_type', 'unknown')
+        type_label = {
+            'deviation': '校准偏差',
+            'accessory_damaged': '配件损坏',
+            'accessory_missing': '配件缺失',
+            'acceptance_failed': '验收不通过'
+        }.get(atype, atype)
+        if type_label not in by_type:
+            by_type[type_label] = {'total': 0, 'pending': 0, 'closed': 0}
+        by_type[type_label]['total'] += 1
+        if a.get('status') == 'closed':
+            by_type[type_label]['closed'] += 1
+        else:
+            by_type[type_label]['pending'] += 1
+
+        alevel = a.get('anomaly_level', 'unknown')
+        level_label = {
+            'minor': '轻微',
+            'major': '严重',
+            'critical': '重大'
+        }.get(alevel, alevel)
+        if level_label not in by_level:
+            by_level[level_label] = {'total': 0, 'pending': 0, 'closed': 0}
+        by_level[level_label]['total'] += 1
+        if a.get('status') == 'closed':
+            by_level[level_label]['closed'] += 1
+        else:
+            by_level[level_label]['pending'] += 1
+
+        inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+        if inst:
+            region_id = inst.get('region_id')
+            region = experiment_regions_table.get(ExperimentRegionQuery.id == region_id)
+            region_name = region.get('name', f'区域{region_id}') if region else f'区域{region_id}'
+            if region_name not in by_region:
+                by_region[region_name] = {'total': 0, 'pending': 0, 'closed': 0, 'minor': 0, 'major': 0, 'critical': 0}
+            by_region[region_name]['total'] += 1
+            if a.get('status') == 'closed':
+                by_region[region_name]['closed'] += 1
+            else:
+                by_region[region_name]['pending'] += 1
+            if alevel in by_region[region_name]:
+                by_region[region_name][alevel] += 1
+
+            category_id = inst.get('category_id')
+            category = instrument_categories_table.get(InstrumentCategoryQuery.id == category_id)
+            category_name = category.get('name', f'类别{category_id}') if category else f'类别{category_id}'
+            if category_name not in by_category:
+                by_category[category_name] = {'total': 0, 'pending': 0, 'closed': 0, 'minor': 0, 'major': 0, 'critical': 0}
+            by_category[category_name]['total'] += 1
+            if a.get('status') == 'closed':
+                by_category[category_name]['closed'] += 1
+            else:
+                by_category[category_name]['pending'] += 1
+            if alevel in by_category[category_name]:
+                by_category[category_name][alevel] += 1
+
+    return {
+        'summary': summary,
+        'by_type': by_type,
+        'by_level': by_level,
+        'by_region': by_region,
+        'by_category': by_category,
+        'generated_at': now_str()
+    }
+
+
+def update_appointment_status_with_anomaly(appointment_id):
+    apt = apt_table.get(CalibrationAppointmentQuery.id == int(appointment_id))
+    if not apt:
+        return
+
+    open_anomalies = anomaly_tasks_table.search(
+        (AnomalyTaskQuery.appointment_id == int(appointment_id)) &
+        (AnomalyTaskQuery.status.one_of(['registered', 'analyzing', 'rectifying', 'reviewing']))
+    )
+
+    if open_anomalies and apt.get('status') == 'pending_acceptance':
+        apt_update = {
+            **apt,
+            'status': 'deviation_pending'
+        }
+        apt_table.update(apt_update, doc_ids=[apt.doc_id])
+        update_warning_status_from_appointment(int(appointment_id))

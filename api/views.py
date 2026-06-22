@@ -771,6 +771,8 @@ class CalibrationRecordView(APIView):
 
         update_warning_status_from_appointment(appointment_id)
 
+        auto_create_anomaly_from_calibration(obj_id)
+
         return Response({
             'message': '校准记录已保存',
             'calibration': data,
@@ -809,14 +811,23 @@ class AcceptanceView(APIView):
         }
         acceptance_records_table.insert(data)
 
+        acceptance_result = serializer.validated_data['result']
+        if acceptance_result:
+            new_status = 'closed'
+        else:
+            new_status = 'deviation_pending'
+
         apt_data = {
             **apt,
-            'status': 'closed'
+            'status': new_status
         }
         doc_id = apt.doc_id
         calibration_appointments_table.update(apt_data, doc_ids=[doc_id])
 
         update_warning_status_from_appointment(appointment_id)
+
+        if not acceptance_result:
+            auto_create_anomaly_from_acceptance(obj_id)
 
         return Response({
             'message': '验收完成',
@@ -1171,4 +1182,188 @@ class WarningDashboardView(APIView):
 
     def get(self, request):
         dashboard = get_warning_dashboard()
+        return Response(dashboard)
+
+
+# ==================== 异常处置模块 ====================
+
+class AnomalyTaskListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        status = request.query_params.get('status')
+        anomaly_level = request.query_params.get('anomaly_level')
+        anomaly_type = request.query_params.get('anomaly_type')
+        region_id = request.query_params.get('region_id')
+        category_id = request.query_params.get('category_id')
+        responsible_person_id = request.query_params.get('responsible_person_id')
+        instrument_id = request.query_params.get('instrument_id')
+        appointment_id = request.query_params.get('appointment_id')
+
+        result = list_anomaly_tasks(
+            status=status,
+            anomaly_level=anomaly_level,
+            anomaly_type=anomaly_type,
+            region_id=region_id,
+            category_id=category_id,
+            responsible_person_id=responsible_person_id,
+            instrument_id=instrument_id,
+            appointment_id=appointment_id
+        )
+        return Response(result)
+
+
+class AnomalyTaskDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        info = get_anomaly_full_info(pk)
+        if not info:
+            return Response({'detail': '异常任务不存在'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(info)
+
+
+class AnomalyTaskCreateView(APIView):
+    permission_classes = [IsAdminOrCalibratorOrExperimenter]
+
+    def post(self, request):
+        serializer = AnomalyCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        discoverer = user_record.get('name', request.user.username)
+
+        anomaly_data, error = create_anomaly_task(
+            appointment_id=serializer.validated_data['appointment_id'],
+            anomaly_type=serializer.validated_data['anomaly_type'],
+            anomaly_level=serializer.validated_data['anomaly_level'],
+            title=serializer.validated_data['title'],
+            description=serializer.validated_data.get('description', ''),
+            calibration_record_id=serializer.validated_data.get('calibration_record_id'),
+            acceptance_record_id=serializer.validated_data.get('acceptance_record_id'),
+            discoverer=discoverer
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        update_appointment_status_with_anomaly(serializer.validated_data['appointment_id'])
+
+        return Response(anomaly_data, status=status.HTTP_201_CREATED)
+
+
+class AnomalyAnalysisView(APIView):
+    permission_classes = [IsAdminOrExperimenterForAnomaly]
+
+    def post(self, request):
+        serializer = AnomalyAnalysisSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        operator = user_record.get('name', request.user.username)
+        operator_role = user_record.get('role', '')
+
+        result, error = anomaly_do_analysis(
+            anomaly_id=serializer.validated_data['anomaly_task_id'],
+            cause_analysis=serializer.validated_data['cause_analysis'],
+            root_cause=serializer.validated_data.get('root_cause', ''),
+            operator=operator,
+            operator_role=operator_role
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'message': '原因分析已提交', 'data': result})
+
+
+class AnomalyRectificationView(APIView):
+    permission_classes = [IsAdminOrExperimenterForAnomaly]
+
+    def post(self, request):
+        serializer = AnomalyRectificationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        operator = user_record.get('name', request.user.username)
+        operator_role = user_record.get('role', '')
+
+        deadline = serializer.validated_data.get('completion_deadline')
+        deadline_str = str(deadline) if deadline else None
+
+        result, error = anomaly_do_rectification(
+            anomaly_id=serializer.validated_data['anomaly_task_id'],
+            rectification_measures=serializer.validated_data['rectification_measures'],
+            responsible_person=serializer.validated_data.get('responsible_person', ''),
+            completion_deadline=deadline_str,
+            operator=operator,
+            operator_role=operator_role
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'message': '整改措施已提交', 'data': result})
+
+
+class AnomalyReviewView(APIView):
+    permission_classes = [IsAdminOrAuditorForAnomaly]
+
+    def post(self, request):
+        serializer = AnomalyReviewSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        operator = user_record.get('name', request.user.username)
+        operator_role = user_record.get('role', '')
+
+        result, error = anomaly_do_review(
+            anomaly_id=serializer.validated_data['anomaly_task_id'],
+            review_opinion=serializer.validated_data['review_opinion'],
+            review_result=serializer.validated_data['review_result'],
+            operator=operator,
+            operator_role=operator_role
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'message': '复核完成', 'data': result})
+
+
+class AnomalyCloseView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        serializer = AnomalyCloseSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        operator = user_record.get('name', request.user.username)
+        operator_role = user_record.get('role', '')
+
+        result, error = anomaly_do_close(
+            anomaly_id=serializer.validated_data['anomaly_task_id'],
+            conclusion=serializer.validated_data['conclusion'],
+            closing_remark=serializer.validated_data.get('closing_remark', ''),
+            operator=operator,
+            operator_role=operator_role
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'message': '异常已结案', 'data': result})
+
+
+class AnomalyDashboardView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        dashboard = get_anomaly_dashboard()
         return Response(dashboard)

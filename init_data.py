@@ -14,7 +14,9 @@ from api.database import (
     experiment_regions_table, storage_locations_table,
     responsible_persons_table, calibration_rules_table,
     instruments_table, calibration_records_table,
-    calibration_appointments_table, generate_id, now_str
+    calibration_appointments_table, precheck_records_table,
+    acceptance_records_table, anomaly_tasks_table,
+    anomaly_process_records_table, generate_id, now_str
 )
 from api.auth_backend import hash_password
 
@@ -166,6 +168,162 @@ def init_default_data():
         iid = generate_id(instruments_table)
         instruments_table.insert({'id': iid, **inst, 'created_at': now_str()})
     print(f'  - 创建 {len(instruments)} 台仪器')
+
+    today = datetime.now()
+    appointments = [
+        {
+            'instrument_id': 1, 'applicant': '张实验员', 'department': '物理学院',
+            'purpose': '日常校准', 'expected_date': (today - timedelta(days=10)).strftime('%Y-%m-%d'),
+            'status': 'pending_acceptance', 'has_precheck': True, 'precheck_id': 1,
+            'remark': ''
+        },
+        {
+            'instrument_id': 2, 'applicant': '李实验员', 'department': '化学学院',
+            'purpose': '季度校准', 'expected_date': (today - timedelta(days=5)).strftime('%Y-%m-%d'),
+            'status': 'deviation_pending', 'has_precheck': True, 'precheck_id': 2,
+            'remark': ''
+        },
+        {
+            'instrument_id': 3, 'applicant': '张实验员', 'department': '物理学院',
+            'purpose': '年度校准', 'expected_date': (today - timedelta(days=3)).strftime('%Y-%m-%d'),
+            'status': 'calibrating', 'has_precheck': True, 'precheck_id': 3,
+            'remark': ''
+        },
+    ]
+
+    today_str = today.strftime('%y%m%d')
+    for i, apt in enumerate(appointments):
+        aid = generate_id(calibration_appointments_table)
+        apt_no = f'{today_str}{i+1:04d}'
+        apt_data = {
+            'id': aid, 'appointment_no': apt_no,
+            **apt,
+            'created_at': now_str(),
+            'submitted_at': now_str()
+        }
+        calibration_appointments_table.insert(apt_data)
+    print(f'  - 创建 {len(appointments)} 个校准预约')
+
+    prechecks = [
+        {
+            'appointment_id': 1, 'experimenter': '张实验员',
+            'check_date': (today - timedelta(days=10)).strftime('%Y-%m-%d'),
+            'items': [
+                {'name': '外观检查', 'result': True, 'remark': ''},
+                {'name': '电源检查', 'result': True, 'remark': ''},
+                {'name': '环境检查', 'result': True, 'remark': ''}
+            ],
+            'overall_result': True, 'remark': ''
+        },
+        {
+            'appointment_id': 2, 'experimenter': '李实验员',
+            'check_date': (today - timedelta(days=5)).strftime('%Y-%m-%d'),
+            'items': [
+                {'name': '外观检查', 'result': True, 'remark': ''},
+                {'name': '电源检查', 'result': True, 'remark': ''},
+                {'name': '配件检查', 'result': False, 'remark': '砝码有磨损'}
+            ],
+            'overall_result': True, 'remark': '配件轻微磨损，不影响使用'
+        },
+        {
+            'appointment_id': 3, 'experimenter': '张实验员',
+            'check_date': (today - timedelta(days=3)).strftime('%Y-%m-%d'),
+            'items': [
+                {'name': '外观检查', 'result': True, 'remark': ''},
+                {'name': '电源检查', 'result': True, 'remark': ''},
+                {'name': '环境检查', 'result': True, 'remark': ''}
+            ],
+            'overall_result': True, 'remark': ''
+        },
+    ]
+    for pc in prechecks:
+        pid = generate_id(precheck_records_table)
+        pc_data = {'id': pid, **pc, 'created_at': now_str()}
+        precheck_records_table.insert(pc_data)
+    print(f'  - 创建 {len(prechecks)} 条前置检查记录')
+
+    cal_records = [
+        {
+            'appointment_id': 1, 'calibrator': '赵校准',
+            'start_date': (today - timedelta(days=9)).strftime('%Y-%m-%d %H:%M:%S'),
+            'end_date': (today - timedelta(days=9, hours=-2)).strftime('%Y-%m-%d %H:%M:%S'),
+            'standard_value': 100.0, 'measured_value': 100.00005, 'error_value': 0.00005,
+            'deviation_level': 'none', 'accessory_status': 'normal',
+            'accessory_remark': '', 'environment_temp': 23.5, 'environment_humidity': 50,
+            'calibration_method': '直接比较法', 'conclusion': '校准合格', 'closing_remark': ''
+        },
+        {
+            'appointment_id': 2, 'calibrator': '钱校准',
+            'start_date': (today - timedelta(days=4)).strftime('%Y-%m-%d %H:%M:%S'),
+            'end_date': (today - timedelta(days=4, hours=-3)).strftime('%Y-%m-%d %H:%M:%S'),
+            'standard_value': 100.0, 'measured_value': 99.9985, 'error_value': -0.0015,
+            'deviation_level': 'minor', 'accessory_status': 'damaged',
+            'accessory_remark': '秤盘有划痕', 'environment_temp': 22.0, 'environment_humidity': 45,
+            'calibration_method': '直接比较法', 'conclusion': '存在轻微偏差', 'closing_remark': '需进一步处理'
+        },
+    ]
+    for cr in cal_records:
+        cid = generate_id(calibration_records_table)
+        cr_data = {'id': cid, **cr, 'created_at': now_str()}
+        calibration_records_table.insert(cr_data)
+    print(f'  - 创建 {len(cal_records)} 条校准记录')
+
+    anomaly_no_base = today.strftime('%y%m%d')
+    anomalies = [
+        {
+            'appointment_id': 2, 'instrument_id': 2,
+            'calibration_record_id': 2, 'acceptance_record_id': None,
+            'anomaly_type': 'deviation', 'anomaly_level': 'minor',
+            'title': '赛多利斯电子天平校准结果轻微偏差',
+            'description': '标准值：100.0，测量值：99.9985，误差：-0.0015',
+            'status': 'analyzing', 'responsible_person_id': 2,
+            'discoverer': '钱校准', 'discovered_at': now_str()
+        },
+        {
+            'appointment_id': 2, 'instrument_id': 2,
+            'calibration_record_id': 2, 'acceptance_record_id': None,
+            'anomaly_type': 'accessory_damaged', 'anomaly_level': 'major',
+            'title': '赛多利斯电子天平配件损坏',
+            'description': '秤盘有划痕',
+            'status': 'registered', 'responsible_person_id': 2,
+            'discoverer': '钱校准', 'discovered_at': now_str()
+        },
+    ]
+    for i, anom in enumerate(anomalies):
+        aid = generate_id(anomaly_tasks_table)
+        anom_no = f'AY{anomaly_no_base}{i+1:04d}'
+        anom_data = {
+            'id': aid, 'anomaly_no': anom_no,
+            **anom, 'closed_at': None, 'created_at': now_str()
+        }
+        anomaly_tasks_table.insert(anom_data)
+
+        pr_id = generate_id(anomaly_process_records_table)
+        pr_data = {
+            'id': pr_id, 'anomaly_task_id': aid,
+            'step': 'register', 'operator': anom['discoverer'],
+            'operator_role': 'calibrator',
+            'content': f'异常登记：{anom["title"]}',
+            'result': '已登记',
+            'remark': anom['description'],
+            'operated_at': now_str()
+        }
+        anomaly_process_records_table.insert(pr_data)
+
+        if anom['status'] == 'analyzing':
+            pr2_id = generate_id(anomaly_process_records_table)
+            pr2_data = {
+                'id': pr2_id, 'anomaly_task_id': aid,
+                'step': 'analysis', 'operator': '李实验员',
+                'operator_role': 'experimenter',
+                'content': '经分析，偏差可能由于环境温度波动和仪器长时间未校准导致。',
+                'result': '已完成原因分析',
+                'remark': '根本原因：环境温度影响',
+                'operated_at': now_str()
+            }
+            anomaly_process_records_table.insert(pr2_data)
+
+    print(f'  - 创建 {len(anomalies)} 条异常任务')
 
     print('初始化完成！')
     print('\n默认账号：')

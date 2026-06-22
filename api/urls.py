@@ -15,7 +15,11 @@ from .views import (
     AppointmentListView, AppointmentDetailView,
     WarningListView, WarningDetailView,
     WarningCreateAppointmentView, WarningDetectView,
-    WarningDashboardView
+    WarningDashboardView,
+    AnomalyTaskListView, AnomalyTaskDetailView,
+    AnomalyTaskCreateView, AnomalyAnalysisView,
+    AnomalyRectificationView, AnomalyReviewView,
+    AnomalyCloseView, AnomalyDashboardView
 )
 
 router = DefaultRouter()
@@ -61,4 +65,13 @@ urlpatterns = [
     path('warnings/create-appointment/', WarningCreateAppointmentView.as_view(), name='warning-create-appointment'),
     path('warnings/detect/', WarningDetectView.as_view(), name='warning-detect'),
     path('warnings/dashboard/', WarningDashboardView.as_view(), name='warning-dashboard'),
+
+    path('anomalies/', AnomalyTaskListView.as_view(), name='anomaly-list'),
+    path('anomalies/<int:pk>/', AnomalyTaskDetailView.as_view(), name='anomaly-detail'),
+    path('anomalies/create/', AnomalyTaskCreateView.as_view(), name='anomaly-create'),
+    path('anomalies/analysis/', AnomalyAnalysisView.as_view(), name='anomaly-analysis'),
+    path('anomalies/rectification/', AnomalyRectificationView.as_view(), name='anomaly-rectification'),
+    path('anomalies/review/', AnomalyReviewView.as_view(), name='anomaly-review'),
+    path('anomalies/close/', AnomalyCloseView.as_view(), name='anomaly-close'),
+    path('anomalies/dashboard/', AnomalyDashboardView.as_view(), name='anomaly-dashboard'),
 ]

@@ -49,3 +49,32 @@ WARNING_STATUS_CHOICES = (
     ('processing', '处理中'),
     ('handled', '已处理'),
 )
+
+ANOMALY_TYPE_CHOICES = (
+    ('deviation', '校准偏差'),
+    ('accessory_damaged', '配件损坏'),
+    ('accessory_missing', '配件缺失'),
+    ('acceptance_failed', '验收不通过'),
+)
+
+ANOMALY_LEVEL_CHOICES = (
+    ('minor', '轻微'),
+    ('major', '严重'),
+    ('critical', '重大'),
+)
+
+ANOMALY_STATUS_CHOICES = (
+    ('registered', '已登记'),
+    ('analyzing', '原因分析中'),
+    ('rectifying', '整改中'),
+    ('reviewing', '复核中'),
+    ('closed', '已结案'),
+)
+
+ANOMALY_STEP_CHOICES = (
+    ('register', '异常登记'),
+    ('analysis', '原因分析'),
+    ('rectification', '整改措施'),
+    ('review', '复核确认'),
+    ('close', '结案'),
+)

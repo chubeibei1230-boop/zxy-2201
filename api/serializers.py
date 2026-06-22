@@ -2,7 +2,9 @@ from rest_framework import serializers
 from .models import (
     ROLE_CHOICES, STATUS_CHOICES, AUDIT_RESULT_CHOICES,
     DEVIATION_LEVEL_CHOICES, ACCESSORY_STATUS_CHOICES,
-    WARNING_LEVEL_CHOICES, WARNING_STATUS_CHOICES
+    WARNING_LEVEL_CHOICES, WARNING_STATUS_CHOICES,
+    ANOMALY_TYPE_CHOICES, ANOMALY_LEVEL_CHOICES,
+    ANOMALY_STATUS_CHOICES, ANOMALY_STEP_CHOICES
 )
 
 
@@ -195,3 +197,80 @@ class WarningFilterSerializer(serializers.Serializer):
     region_id = serializers.IntegerField(required=False)
     category_id = serializers.IntegerField(required=False)
     responsible_person_id = serializers.IntegerField(required=False)
+
+
+class AnomalyTaskSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    anomaly_no = serializers.CharField(max_length=50, read_only=True)
+    appointment_id = serializers.IntegerField()
+    instrument_id = serializers.IntegerField()
+    calibration_record_id = serializers.IntegerField(required=False, allow_null=True)
+    acceptance_record_id = serializers.IntegerField(required=False, allow_null=True)
+    anomaly_type = serializers.ChoiceField(choices=ANOMALY_TYPE_CHOICES)
+    anomaly_level = serializers.ChoiceField(choices=ANOMALY_LEVEL_CHOICES)
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    status = serializers.ChoiceField(choices=ANOMALY_STATUS_CHOICES, read_only=True)
+    responsible_person_id = serializers.IntegerField(required=False, allow_null=True)
+    discoverer = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    discovered_at = serializers.DateTimeField(required=False, allow_null=True)
+    closed_at = serializers.DateTimeField(required=False, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class AnomalyProcessRecordSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    anomaly_task_id = serializers.IntegerField()
+    step = serializers.ChoiceField(choices=ANOMALY_STEP_CHOICES)
+    operator = serializers.CharField(max_length=50)
+    operator_role = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    content = serializers.CharField(max_length=2000)
+    result = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    remark = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    operated_at = serializers.DateTimeField(read_only=True)
+
+
+class AnomalyCreateSerializer(serializers.Serializer):
+    appointment_id = serializers.IntegerField()
+    anomaly_type = serializers.ChoiceField(choices=ANOMALY_TYPE_CHOICES)
+    anomaly_level = serializers.ChoiceField(choices=ANOMALY_LEVEL_CHOICES)
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    calibration_record_id = serializers.IntegerField(required=False, allow_null=True)
+    acceptance_record_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class AnomalyAnalysisSerializer(serializers.Serializer):
+    anomaly_task_id = serializers.IntegerField()
+    cause_analysis = serializers.CharField(max_length=2000)
+    root_cause = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+
+class AnomalyRectificationSerializer(serializers.Serializer):
+    anomaly_task_id = serializers.IntegerField()
+    rectification_measures = serializers.CharField(max_length=2000)
+    responsible_person = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    completion_deadline = serializers.DateField(required=False, allow_null=True)
+
+
+class AnomalyReviewSerializer(serializers.Serializer):
+    anomaly_task_id = serializers.IntegerField()
+    review_opinion = serializers.CharField(max_length=1000)
+    review_result = serializers.ChoiceField(choices=[('pass', '通过'), ('reject', '退回')])
+
+
+class AnomalyCloseSerializer(serializers.Serializer):
+    anomaly_task_id = serializers.IntegerField()
+    conclusion = serializers.CharField(max_length=1000)
+    closing_remark = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+
+class AnomalyFilterSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ANOMALY_STATUS_CHOICES, required=False)
+    anomaly_level = serializers.ChoiceField(choices=ANOMALY_LEVEL_CHOICES, required=False)
+    anomaly_type = serializers.ChoiceField(choices=ANOMALY_TYPE_CHOICES, required=False)
+    region_id = serializers.IntegerField(required=False)
+    category_id = serializers.IntegerField(required=False)
+    responsible_person_id = serializers.IntegerField(required=False)
+    instrument_id = serializers.IntegerField(required=False)
+    appointment_id = serializers.IntegerField(required=False)
