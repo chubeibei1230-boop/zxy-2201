@@ -434,7 +434,7 @@
       "applicant": "张实验员",
       "department": "物理学院",
       "purpose": "日常校准",
-      "expected_date": "2026-06-12",
+      "expected_date": "2024-06-25",
       "status": "pending_acceptance",
       "has_precheck": true,
       "precheck_id": 1,
@@ -1110,6 +1110,124 @@
       "result": false,
       "opinion": "第二次不通过，再次检查",
       "acceptance_date": "2026-06-22 13:18:09"
+    }
+  },
+  "change_requests": {
+    "1": {
+      "id": 1,
+      "change_no": "BG2606220001",
+      "appointment_id": 1,
+      "applicant": "张实验员",
+      "change_type": "expected_date",
+      "old_value": "2024-06-20",
+      "new_value": "2024-06-25",
+      "reason": "实验员临时有其他任务，需要调整校准日期",
+      "expected_effective_date": "2024-06-25",
+      "status": "approved",
+      "related_anomaly_id": null,
+      "related_warning_id": null,
+      "created_at": "2026-06-22 14:08:58"
+    },
+    "2": {
+      "id": 2,
+      "change_no": "BG2606220002",
+      "appointment_id": 1,
+      "applicant": "张实验员",
+      "change_type": "expected_date",
+      "old_value": "2024-06-20",
+      "new_value": "2024-06-25",
+      "reason": "实验员临时有其他任务，需要调整校准日期",
+      "expected_effective_date": "2024-06-25",
+      "status": "pending_audit",
+      "related_anomaly_id": null,
+      "related_warning_id": null,
+      "created_at": "2026-06-22 14:08:58"
+    },
+    "3": {
+      "id": 3,
+      "change_no": "BG2606220003",
+      "appointment_id": 1,
+      "applicant": "张实验员",
+      "change_type": "expected_date",
+      "old_value": "2024-06-20",
+      "new_value": "2024-06-25",
+      "reason": "实验员临时有其他任务，需要调整校准日期",
+      "expected_effective_date": "2024-06-25",
+      "status": "approved",
+      "related_anomaly_id": null,
+      "related_warning_id": null,
+      "created_at": "2026-06-22 14:09:50"
+    },
+    "4": {
+      "id": 4,
+      "change_no": "BG2606220004",
+      "appointment_id": 1,
+      "applicant": "张实验员",
+      "change_type": "expected_date",
+      "old_value": "2024-06-20",
+      "new_value": "2024-06-25",
+      "reason": "实验员临时有其他任务，需要调整校准日期",
+      "expected_effective_date": "2024-06-25",
+      "status": "pending_audit",
+      "related_anomaly_id": null,
+      "related_warning_id": null,
+      "created_at": "2026-06-22 14:09:50"
+    },
+    "5": {
+      "id": 5,
+      "change_no": "BG2606220005",
+      "appointment_id": 1,
+      "applicant": "张实验员",
+      "change_type": "expected_date",
+      "old_value": "2024-06-20",
+      "new_value": "2024-06-25",
+      "reason": "实验员临时有其他任务，需要调整校准日期",
+      "expected_effective_date": "2024-06-25",
+      "status": "approved",
+      "related_anomaly_id": null,
+      "related_warning_id": null,
+      "created_at": "2026-06-22 14:16:21"
+    },
+    "6": {
+      "id": 6,
+      "change_no": "BG2606220006",
+      "appointment_id": 1,
+      "applicant": "张实验员",
+      "change_type": "expected_date",
+      "old_value": "2024-06-20",
+      "new_value": "2024-06-25",
+      "reason": "实验员临时有其他任务，需要调整校准日期",
+      "expected_effective_date": "2024-06-25",
+      "status": "pending_audit",
+      "related_anomaly_id": null,
+      "related_warning_id": null,
+      "created_at": "2026-06-22 14:16:22"
+    }
+  },
+  "change_audit_records": {
+    "1": {
+      "id": 1,
+      "change_request_id": 1,
+      "auditor": "王审核",
+      "result": "approved",
+      "opinion": "同意调整，情况属实",
+      "audit_date": "2026-06-22 14:08:58"
+    },
+    "2": {
+      "id": 2,
+      "change_request_id": 3,
+      "auditor": "王审核",
+      "result": "approved",
+      "opinion": "同意调整，情况属实",
+      "audit_date": "2026-06-22 14:09:50"
+    },
+    "3": {
+      "id": 3,
+      "change_request_id": 5,
+      "auditor": "王审核",
+      "result": "approved",
+      "opinion": "同意调整，情况属实",
+      "audit_date": "2026-06-22 14:16:21"
     }
   }
 }

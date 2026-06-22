@@ -78,3 +78,24 @@ ANOMALY_STEP_CHOICES = (
     ('review', '复核确认'),
     ('close', '结案'),
 )
+
+CHANGE_TYPE_CHOICES = (
+    ('expected_date', '预计日期调整'),
+    ('calibrator', '校准人员调整'),
+    ('instrument_status', '仪器状态调整'),
+    ('precheck_result', '前置检查结果调整'),
+    ('business_reason', '业务原因调整'),
+)
+
+CHANGE_STATUS_CHOICES = (
+    ('pending_audit', '待审核'),
+    ('approved', '已通过'),
+    ('returned', '已退回'),
+    ('rejected', '已驳回'),
+)
+
+CHANGE_AUDIT_RESULT_CHOICES = (
+    ('approved', '通过'),
+    ('returned', '退回'),
+    ('rejected', '驳回'),
+)

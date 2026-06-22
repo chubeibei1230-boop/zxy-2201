@@ -1382,3 +1382,125 @@ class AnomalyDashboardView(APIView):
     def get(self, request):
         dashboard = get_anomaly_dashboard()
         return Response(dashboard)
+
+
+class ChangeRequestListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        status = request.query_params.get('status')
+        change_type = request.query_params.get('change_type')
+        instrument_id = request.query_params.get('instrument_id')
+        applicant = request.query_params.get('applicant')
+        appointment_id = request.query_params.get('appointment_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        user_role = user_record.get('role') if user_record else None
+
+        result = list_change_requests(
+            status=status,
+            change_type=change_type,
+            instrument_id=instrument_id,
+            applicant=applicant,
+            appointment_id=appointment_id,
+            start_date=start_date,
+            end_date=end_date,
+            username=request.user.username,
+            user_role=user_role
+        )
+        return Response(result)
+
+
+class ChangeRequestDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        info = get_change_request_full_info(pk)
+        if not info:
+            return Response({'detail': '变更申请不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        user_role = user_record.get('role') if user_record else None
+        user_name = user_record.get('name', request.user.username) if user_record else request.user.username
+
+        if user_role != 'admin' and user_role != 'auditor' and info.get('applicant') != user_name:
+            return Response({'detail': '无权查看该变更申请'}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response(info)
+
+
+class ChangeRequestCreateView(APIView):
+    permission_classes = [IsAdminOrExperimenterForChange]
+
+    def post(self, request):
+        serializer = ChangeRequestCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        applicant_name = user_record.get('name', request.user.username)
+
+        effective_date = serializer.validated_data.get('expected_effective_date')
+        effective_date_str = str(effective_date) if effective_date else None
+
+        result, error = create_change_request(
+            appointment_id=serializer.validated_data['appointment_id'],
+            change_type=serializer.validated_data['change_type'],
+            old_value=serializer.validated_data['old_value'],
+            new_value=serializer.validated_data['new_value'],
+            reason=serializer.validated_data['reason'],
+            expected_effective_date=effective_date_str,
+            related_anomaly_id=serializer.validated_data.get('related_anomaly_id'),
+            related_warning_id=serializer.validated_data.get('related_warning_id'),
+            applicant=applicant_name
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class ChangeRequestAuditView(APIView):
+    permission_classes = [IsAdminOrAuditorForChange]
+
+    def post(self, request):
+        serializer = ChangeRequestAuditSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_record = users_table.get(UserQuery.username == request.user.username)
+        auditor_name = user_record.get('name', request.user.username)
+
+        result, error = audit_change_request(
+            change_request_id=serializer.validated_data['change_request_id'],
+            result=serializer.validated_data['result'],
+            opinion=serializer.validated_data['opinion'],
+            auditor=auditor_name
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'message': '审核完成', 'data': result})
+
+
+class AppointmentChangeHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, appointment_id):
+        history = get_appointment_change_history(appointment_id)
+        return Response(history)
+
+
+# ==================== 前端页面 ====================
+
+from django.shortcuts import render
+
+class ChangeManagementPageView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return render(request, 'change_management.html')

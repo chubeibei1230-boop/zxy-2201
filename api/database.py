@@ -22,6 +22,8 @@ acceptance_records_table = db.table('acceptance_records')
 calibration_warnings_table = db.table('calibration_warnings')
 anomaly_tasks_table = db.table('anomaly_tasks')
 anomaly_process_records_table = db.table('anomaly_process_records')
+change_requests_table = db.table('change_requests')
+change_audit_records_table = db.table('change_audit_records')
 
 UserQuery = Query()
 InstrumentCategoryQuery = Query()
@@ -38,6 +40,8 @@ AcceptanceRecordQuery = Query()
 CalibrationWarningQuery = Query()
 AnomalyTaskQuery = Query()
 AnomalyProcessRecordQuery = Query()
+ChangeRequestQuery = Query()
+ChangeAuditRecordQuery = Query()
 
 
 def generate_id(table):

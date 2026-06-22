@@ -19,7 +19,10 @@ from .views import (
     AnomalyTaskListView, AnomalyTaskDetailView,
     AnomalyTaskCreateView, AnomalyAnalysisView,
     AnomalyRectificationView, AnomalyReviewView,
-    AnomalyCloseView, AnomalyDashboardView
+    AnomalyCloseView, AnomalyDashboardView,
+    ChangeRequestListView, ChangeRequestDetailView,
+    ChangeRequestCreateView, ChangeRequestAuditView,
+    AppointmentChangeHistoryView, ChangeManagementPageView
 )
 
 router = DefaultRouter()
@@ -74,4 +77,13 @@ urlpatterns = [
     path('anomalies/review/', AnomalyReviewView.as_view(), name='anomaly-review'),
     path('anomalies/close/', AnomalyCloseView.as_view(), name='anomaly-close'),
     path('anomalies/dashboard/', AnomalyDashboardView.as_view(), name='anomaly-dashboard'),
+
+    path('changes/', ChangeRequestListView.as_view(), name='change-list'),
+    path('changes/<int:pk>/', ChangeRequestDetailView.as_view(), name='change-detail'),
+    path('changes/create/', ChangeRequestCreateView.as_view(), name='change-create'),
+    path('changes/audit/', ChangeRequestAuditView.as_view(), name='change-audit'),
+
+    path('appointments/<int:appointment_id>/change-history/', AppointmentChangeHistoryView.as_view(), name='appointment-change-history'),
+
+    path('change-management/', ChangeManagementPageView.as_view(), name='change-management'),
 ]

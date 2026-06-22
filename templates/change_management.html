@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校准任务变更申请管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-pending_audit { background-color: #fff3cd; color: #856404; }
+        .status-approved { background-color: #d4edda; color: #155724; }
+        .status-returned { background-color: #ffeeba; color: #856404; }
+        .status-rejected { background-color: #f8d7da; color: #721c24; }
+        
+        .change-type-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            background-color: #e7f1ff;
+            color: #004085;
+        }
+        
+        .card-hover:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+        
+        .detail-label {
+            color: #6c757d;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #dee2e6;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: #007bff;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px #007bff;
+        }
+        
+        .change-diff {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .old-value {
+            text-decoration: line-through;
+            color: #dc3545;
+            background-color: #fff5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .new-value {
+            color: #28a745;
+            background-color: #f0fff4;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .arrow-icon {
+            color: #6c757d;
+            font-size: 18px;
+        }
+        
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .change-compare {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div id="app">
+        <div v-if="loading" class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+
+        <nav v-if="isLoggedIn" class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+            <div class="container">
+                <span class="navbar-brand">校准任务变更申请管理</span>
+                <div class="collapse navbar-collapse">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{ active: currentView === 'list' }" 
+                               @click="currentView = 'list'" href="javascript:void(0)">
+                                变更申请列表
+                            </a>
+                        </li>
+                        <li class="nav-item" v-if="canCreate">
+                            <a class="nav-link" :class="{ active: currentView === 'create' }" 
+                               @click="currentView = 'create'" href="javascript:void(0)">
+                                发起变更申请
+                            </a>
+                        </li>
+                    </ul>
+                    <span class="navbar-text me-3">
+                        欢迎，{{ userInfo.name }} ({{ userRoleLabel }})
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" @click="logout">退出登录</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div v-if="!isLoggedIn" class="row justify-content-center mt-5">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">登录</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" v-model="loginForm.username" 
+                                       placeholder="admin / exp01 / audit01 / cali01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">密码</label>
+                                <input type="password" class="form-control" v-model="loginForm.password"
+                                       placeholder="admin123 / exp123 / audit123 / cali123">
+                            </div>
+                            <div v-if="loginError" class="alert alert-danger">{{ loginError }}</div>
+                            <button class="btn btn-primary w-100" @click="login" :disabled="loggingIn">
+                                {{ loggingIn ? '登录中...' : '登录' }}
+                            </button>
+                            <div class="mt-3 small text-muted">
+                                <p class="mb-1">测试账号：</p>
+                                <ul class="mb-0">
+                                    <li>管理员: admin / admin123</li>
+                                    <li>实验员: exp01 / exp123</li>
+                                    <li>审核人: audit01 / audit123</li>
+                                    <li>校准员: cali01 / cali123</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else-if="currentView === 'list'">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3>变更申请列表</h3>
+                    <button v-if="canCreate" class="btn btn-primary" @click="currentView = 'create'">
+                        <span class="me-1">+</span> 发起变更申请
+                    </button>
+                </div>
+
+                <div class="filter-section">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">申请状态</label>
+                            <select class="form-select" v-model="filters.status">
+                                <option value="">全部</option>
+                                <option value="pending_audit">待审核</option>
+                                <option value="approved">已通过</option>
+                                <option value="returned">已退回</option>
+                                <option value="rejected">已驳回</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">变更类型</label>
+                            <select class="form-select" v-model="filters.change_type">
+                                <option value="">全部</option>
+                                <option value="expected_date">预计日期调整</option>
+                                <option value="calibrator">校准人员调整</option>
+                                <option value="instrument_status">仪器状态调整</option>
+                                <option value="precheck_result">前置检查结果调整</option>
+                                <option value="business_reason">业务原因调整</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">仪器ID</label>
+                            <input type="number" class="form-control" v-model.number="filters.instrument_id" 
+                                   placeholder="仪器ID">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">申请人</label>
+                            <input type="text" class="form-control" v-model="filters.applicant" 
+                                   placeholder="申请人姓名">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">开始日期</label>
+                            <input type="date" class="form-control" v-model="filters.start_date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">结束日期</label>
+                            <input type="date" class="form-control" v-model="filters.end_date">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-primary me-2" @click="loadChangeRequests">
+                            🔍 查询
+                        </button>
+                        <button class="btn btn-outline-secondary" @click="resetFilters">
+                            🔄 重置
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="changeRequests.length === 0" class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <h5>暂无变更申请记录</h5>
+                    <p class="mb-0">点击"发起变更申请"创建新的变更申请</p>
+                </div>
+
+                <div v-else class="row g-3">
+                    <div v-for="cr in changeRequests" :key="cr.id" 
+                         class="col-md-6 col-lg-4">
+                        <div class="card card-hover h-100" @click="viewDetail(cr.id)" 
+                             style="cursor: pointer;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="change-type-tag">{{ cr.change_type_label }}</span>
+                                    <span class="status-badge" :class="'status-' + cr.status">
+                                        {{ cr.status_label }}
+                                    </span>
+                                </div>
+                                <h6 class="card-title mb-2">{{ cr.change_no }}</h6>
+                                <div class="detail-label">仪器</div>
+                                <div class="detail-value">
+                                    {{ cr.instrument?.name || '-' }} 
+                                    <span class="text-muted">(ID: {{ cr.instrument_id }})</span>
+                                </div>
+                                <div class="change-compare">
+                                    <div class="change-diff">
+                                        <span class="old-value">{{ cr.old_value }}</span>
+                                        <span class="arrow-icon">→</span>
+                                        <span class="new-value">{{ cr.new_value }}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-3 text-muted small">
+                                    <div class="d-flex justify-content-between">
+                                        <span>申请人: {{ cr.applicant }}</span>
+                                        <span>{{ cr.created_at }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else-if="currentView === 'detail' && selectedChange">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <button class="btn btn-outline-secondary" @click="currentView = 'list'">
+                        ← 返回列表
+                    </button>
+                    <div>
+                        <button v-if="canAudit && selectedChange.status === 'pending_audit'" 
+                                class="btn btn-success me-2" 
+                                @click="showAuditModal('approved')">
+                            ✓ 通过
+                        </button>
+                        <button v-if="canAudit && selectedChange.status === 'pending_audit'" 
+                                class="btn btn-warning me-2"
+                                @click="showAuditModal('returned')">
+                            ↩ 退回
+                        </button>
+                        <button v-if="canAudit && selectedChange.status === 'pending_audit'" 
+                                class="btn btn-danger"
+                                @click="showAuditModal('rejected')">
+                            ✕ 驳回
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">变更申请详情</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="detail-label">变更编号</div>
+                                        <div class="detail-value">{{ selectedChange.change_no }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">状态</div>
+                                        <div class="detail-value">
+                                            <span class="status-badge" :class="'status-' + selectedChange.status">
+                                                {{ selectedChange.status_label }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">变更类型</div>
+                                        <div class="detail-value">
+                                            <span class="change-type-tag">{{ selectedChange.change_type_label }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">申请人</div>
+                                        <div class="detail-value">{{ selectedChange.applicant }}</div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="detail-label">变更内容</div>
+                                        <div class="change-compare">
+                                            <div class="change-diff">
+                                                <div>
+                                                    <div class="detail-label">变更前</div>
+                                                    <span class="old-value">{{ selectedChange.old_value }}</span>
+                                                </div>
+                                                <span class="arrow-icon">→</span>
+                                                <div>
+                                                    <div class="detail-label">变更后</div>
+                                                    <span class="new-value">{{ selectedChange.new_value }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 mt-3">
+                                        <div class="detail-label">变更原因</div>
+                                        <div class="detail-value">{{ selectedChange.reason }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">期望生效日期</div>
+                                        <div class="detail-value">{{ selectedChange.expected_effective_date || '-' }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">申请时间</div>
+                                        <div class="detail-value">{{ selectedChange.created_at }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">关联预约信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="detail-label">预约编号</div>
+                                        <div class="detail-value">{{ selectedChange.appointment?.appointment_no }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">预约状态</div>
+                                        <div class="detail-value">{{ selectedChange.appointment?.status }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">仪器名称</div>
+                                        <div class="detail-value">{{ selectedChange.instrument?.name }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">仪器编号</div>
+                                        <div class="detail-value">{{ selectedChange.instrument?.serial_number }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">所属区域</div>
+                                        <div class="detail-value">{{ selectedChange.region?.name }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="detail-label">仪器类别</div>
+                                        <div class="detail-value">{{ selectedChange.category?.name }}</div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="detail-label">校准用途</div>
+                                        <div class="detail-value">{{ selectedChange.appointment?.purpose }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="selectedChange.related_anomaly || selectedChange.related_warning" class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">关联信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="selectedChange.related_anomaly" class="mb-3">
+                                    <div class="detail-label">关联异常</div>
+                                    <div class="detail-value">
+                                        <span class="badge bg-warning">{{ selectedChange.related_anomaly.anomaly_no }}</span>
+                                        {{ selectedChange.related_anomaly.title }}
+                                    </div>
+                                </div>
+                                <div v-if="selectedChange.related_warning">
+                                    <div class="detail-label">关联预警</div>
+                                    <div class="detail-value">
+                                        <span class="badge bg-danger">预警ID: {{ selectedChange.related_warning.id }}</span>
+                                        等级: {{ selectedChange.related_warning.level }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">审批记录</h5>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="selectedChange.audit_records.length === 0" class="text-muted text-center py-3">
+                                    暂无审批记录
+                                </div>
+                                <div v-else class="timeline">
+                                    <div v-for="(record, index) in selectedChange.audit_records" :key="record.id" 
+                                         class="timeline-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <span class="fw-bold">{{ record.auditor }}</span>
+                                                <span class="status-badge ms-2" :class="'status-' + record.result">
+                                                    {{ getAuditResultLabel(record.result) }}
+                                                </span>
+                                            </div>
+                                            <small class="text-muted">{{ record.audit_date }}</small>
+                                        </div>
+                                        <div class="mt-1 text-muted">{{ record.opinion }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">操作指南</h6>
+                            </div>
+                            <div class="card-body small">
+                                <ul class="list-unstyled mb-0">
+                                    <li class="mb-2">
+                                        <span class="text-primary">📝</span>
+                                        <strong>待审核</strong>: 等待审核人处理
+                                    </li>
+                                    <li class="mb-2">
+                                        <span class="text-success">✓</span>
+                                        <strong>已通过</strong>: 变更生效，数据已同步
+                                    </li>
+                                    <li class="mb-2">
+                                        <span class="text-warning">↩</span>
+                                        <strong>已退回</strong>: 需要修改后重新提交
+                                    </li>
+                                    <li>
+                                        <span class="text-danger">✕</span>
+                                        <strong>已驳回</strong>: 变更申请被拒绝
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else-if="currentView === 'create'">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <button class="btn btn-outline-secondary" @click="currentView = 'list'">
+                        ← 返回列表
+                    </button>
+                </div>
+
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">发起变更申请</h5>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="createError" class="alert alert-danger">{{ createError }}</div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">关联预约 <span class="text-danger">*</span></label>
+                                    <select class="form-select" v-model.number="createForm.appointment_id"
+                                            @change="loadAppointmentDetail">
+                                        <option :value="null">请选择预约</option>
+                                        <option v-for="apt in availableAppointments" :key="apt.id" 
+                                                :value="apt.id">
+                                            {{ apt.appointment_no }} - {{ apt.instrument?.name }} ({{ apt.status_label || apt.status }})
+                                        </option>
+                                    </select>
+                                    <div class="form-text">只能选择已提交或进行中的校准预约</div>
+                                </div>
+
+                                <div v-if="selectedAppointment" class="alert alert-info mb-3">
+                                    <h6 class="alert-heading">预约信息</h6>
+                                    <div class="row small">
+                                        <div class="col-md-4">仪器: {{ selectedAppointment.instrument?.name }}</div>
+                                        <div class="col-md-4">当前状态: {{ selectedAppointment.status_label || selectedAppointment.status }}</div>
+                                        <div class="col-md-4">预计日期: {{ selectedAppointment.expected_date }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">变更类型 <span class="text-danger">*</span></label>
+                                    <select class="form-select" v-model="createForm.change_type">
+                                        <option value="">请选择变更类型</option>
+                                        <option value="expected_date">预计日期调整</option>
+                                        <option value="calibrator">校准人员调整</option>
+                                        <option value="instrument_status">仪器状态调整</option>
+                                        <option value="precheck_result">前置检查结果调整</option>
+                                        <option value="business_reason">业务原因调整</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">变更前内容 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="createForm.old_value"
+                                           placeholder="请输入变更前的内容">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">变更后内容 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="createForm.new_value"
+                                           placeholder="请输入变更后的内容">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">变更原因说明 <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" rows="3" v-model="createForm.reason"
+                                              placeholder="请详细说明变更的原因"></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">期望生效日期</label>
+                                    <input type="date" class="form-control" v-model="createForm.expected_effective_date">
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">关联异常ID</label>
+                                        <input type="number" class="form-control" 
+                                               v-model.number="createForm.related_anomaly_id"
+                                               placeholder="选填，关联的异常任务ID">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">关联预警ID</label>
+                                        <input type="number" class="form-control" 
+                                               v-model.number="createForm.related_warning_id"
+                                               placeholder="选填，关联的预警记录ID">
+                                    </div>
+                                </div>
+
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button class="btn btn-secondary me-md-2" @click="currentView = 'list'">
+                                        取消
+                                    </button>
+                                    <button class="btn btn-primary" @click="submitChangeRequest" 
+                                            :disabled="submitting">
+                                        {{ submitting ? '提交中...' : '提交变更申请' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showAudit" class="modal show" style="display: block; background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            {{ auditAction === 'approved' ? '通过变更申请' : 
+                               auditAction === 'returned' ? '退回变更申请' : '驳回变更申请' }}
+                        </h5>
+                        <button type="button" class="btn-close" @click="showAudit = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">审批意见 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" rows="3" v-model="auditForm.opinion"
+                                      :placeholder="'请输入' + (auditAction === 'approved' ? '通过' : auditAction === 'returned' ? '退回' : '驳回') + '的意见'"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showAudit = false">
+                            取消
+                        </button>
+                        <button type="button" class="btn" 
+                                :class="auditAction === 'approved' ? 'btn-success' : 
+                                       auditAction === 'returned' ? 'btn-warning' : 'btn-danger'"
+                                @click="submitAudit" :disabled="submitting">
+                            {{ submitting ? '提交中...' : '确认' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="toastMessage" class="toast show position-fixed top-0 end-0 m-3" 
+             style="z-index: 10000;" :class="{ 'bg-success': toastType === 'success', 'bg-danger': toastType === 'error' }">
+            <div class="toast-body text-white">
+                {{ toastMessage }}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+        const API_BASE = '/api';
+
+        createApp({
+            setup() {
+                const loading = ref(false);
+                const loggingIn = ref(false);
+                const submitting = ref(false);
+                const isLoggedIn = ref(false);
+                const currentView = ref('list');
+
+                const token = ref(localStorage.getItem('auth_token') || '');
+                const userInfo = ref(JSON.parse(localStorage.getItem('user_info') || '{}'));
+
+                const loginForm = reactive({
+                    username: '',
+                    password: ''
+                });
+                const loginError = ref('');
+
+                const changeRequests = ref([]);
+                const selectedChange = ref(null);
+                const selectedAppointment = ref(null);
+                const availableAppointments = ref([]);
+
+                const filters = reactive({
+                    status: '',
+                    change_type: '',
+                    instrument_id: null,
+                    applicant: '',
+                    start_date: '',
+                    end_date: ''
+                });
+
+                const createForm = reactive({
+                    appointment_id: null,
+                    change_type: '',
+                    old_value: '',
+                    new_value: '',
+                    reason: '',
+                    expected_effective_date: '',
+                    related_anomaly_id: null,
+                    related_warning_id: null
+                });
+                const createError = ref('');
+
+                const showAudit = ref(false);
+                const auditAction = ref('');
+                const auditForm = reactive({
+                    opinion: ''
+                });
+
+                const toastMessage = ref('');
+                const toastType = ref('success');
+
+                const userRole = computed(() => userInfo.value.role || '');
+                const userRoleLabel = computed(() => {
+                    const labels = {
+                        'admin': '管理员',
+                        'experimenter': '实验员',
+                        'auditor': '审核人',
+                        'calibrator': '校准员'
+                    };
+                    return labels[userRole.value] || userRole.value;
+                });
+
+                const canCreate = computed(() => 
+                    userRole.value === 'admin' || userRole.value === 'experimenter'
+                );
+
+                const canAudit = computed(() => 
+                    userRole.value === 'admin' || userRole.value === 'auditor'
+                );
+
+                const api = axios.create({
+                    baseURL: API_BASE,
+                    headers: token.value ? { 'Authorization': `Bearer ${token.value}` } : {}
+                });
+
+                const showToast = (message, type = 'success') => {
+                    toastMessage.value = message;
+                    toastType.value = type;
+                    setTimeout(() => {
+                        toastMessage.value = '';
+                    }, 3000);
+                };
+
+                const login = async () => {
+                    loggingIn.value = true;
+                    loginError.value = '';
+                    try {
+                        const response = await api.post('/auth/login/', {
+                            username: loginForm.username,
+                            password: loginForm.password
+                        });
+                        token.value = response.data.access;
+                        userInfo.value = response.data.user;
+                        localStorage.setItem('auth_token', token.value);
+                        localStorage.setItem('user_info', JSON.stringify(userInfo.value));
+                        api.defaults.headers['Authorization'] = `Bearer ${token.value}`;
+                        isLoggedIn.value = true;
+                        showToast('登录成功');
+                        loadChangeRequests();
+                        loadAvailableAppointments();
+                    } catch (error) {
+                        loginError.value = error.response?.data?.detail || '登录失败';
+                    } finally {
+                        loggingIn.value = false;
+                    }
+                };
+
+                const logout = () => {
+                    token.value = '';
+                    userInfo.value = {};
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('user_info');
+                    delete api.defaults.headers['Authorization'];
+                    isLoggedIn.value = false;
+                    showToast('已退出登录');
+                };
+
+                const loadChangeRequests = async () => {
+                    loading.value = true;
+                    try {
+                        const params = {};
+                        if (filters.status) params.status = filters.status;
+                        if (filters.change_type) params.change_type = filters.change_type;
+                        if (filters.instrument_id) params.instrument_id = filters.instrument_id;
+                        if (filters.applicant) params.applicant = filters.applicant;
+                        if (filters.start_date) params.start_date = filters.start_date;
+                        if (filters.end_date) params.end_date = filters.end_date;
+
+                        const response = await api.get('/changes/', { params });
+                        changeRequests.value = response.data;
+                    } catch (error) {
+                        showToast('加载变更申请列表失败', 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const resetFilters = () => {
+                    filters.status = '';
+                    filters.change_type = '';
+                    filters.instrument_id = null;
+                    filters.applicant = '';
+                    filters.start_date = '';
+                    filters.end_date = '';
+                    loadChangeRequests();
+                };
+
+                const viewDetail = async (id) => {
+                    loading.value = true;
+                    try {
+                        const response = await api.get(`/changes/${id}/`);
+                        selectedChange.value = response.data;
+                        currentView.value = 'detail';
+                    } catch (error) {
+                        showToast('加载详情失败', 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadAvailableAppointments = async () => {
+                    try {
+                        const response = await api.get('/appointments/');
+                        const allApts = response.data;
+                        availableAppointments.value = allApts.filter(apt => 
+                            ['pending_audit', 'pending_calibration', 'calibrating', 'pending_acceptance'].includes(apt.status)
+                        );
+                    } catch (error) {
+                        console.error('加载预约列表失败', error);
+                    }
+                };
+
+                const loadAppointmentDetail = async () => {
+                    if (!createForm.appointment_id) {
+                        selectedAppointment.value = null;
+                        return;
+                    }
+                    try {
+                        const response = await api.get(`/appointments/${createForm.appointment_id}/`);
+                        selectedAppointment.value = response.data;
+                    } catch (error) {
+                        console.error('加载预约详情失败', error);
+                    }
+                };
+
+                const submitChangeRequest = async () => {
+                    if (!createForm.appointment_id || !createForm.change_type || 
+                        !createForm.old_value || !createForm.new_value || !createForm.reason) {
+                        createError.value = '请填写所有必填项';
+                        return;
+                    }
+
+                    submitting.value = true;
+                    createError.value = '';
+                    try {
+                        const data = {
+                            appointment_id: createForm.appointment_id,
+                            change_type: createForm.change_type,
+                            old_value: createForm.old_value,
+                            new_value: createForm.new_value,
+                            reason: createForm.reason
+                        };
+                        if (createForm.expected_effective_date) {
+                            data.expected_effective_date = createForm.expected_effective_date;
+                        }
+                        if (createForm.related_anomaly_id) {
+                            data.related_anomaly_id = createForm.related_anomaly_id;
+                        }
+                        if (createForm.related_warning_id) {
+                            data.related_warning_id = createForm.related_warning_id;
+                        }
+
+                        const response = await api.post('/changes/create/', data);
+                        showToast('变更申请提交成功');
+                        resetCreateForm();
+                        currentView.value = 'list';
+                        loadChangeRequests();
+                    } catch (error) {
+                        createError.value = error.response?.data?.detail || '提交失败';
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                const resetCreateForm = () => {
+                    createForm.appointment_id = null;
+                    createForm.change_type = '';
+                    createForm.old_value = '';
+                    createForm.new_value = '';
+                    createForm.reason = '';
+                    createForm.expected_effective_date = '';
+                    createForm.related_anomaly_id = null;
+                    createForm.related_warning_id = null;
+                    selectedAppointment.value = null;
+                    createError.value = '';
+                };
+
+                const showAuditModal = (action) => {
+                    auditAction.value = action;
+                    auditForm.opinion = '';
+                    showAudit.value = true;
+                };
+
+                const submitAudit = async () => {
+                    if (!auditForm.opinion) {
+                        showToast('请填写审批意见', 'error');
+                        return;
+                    }
+
+                    submitting.value = true;
+                    try {
+                        const response = await api.post('/changes/audit/', {
+                            change_request_id: selectedChange.value.id,
+                            result: auditAction.value,
+                            opinion: auditForm.opinion
+                        });
+                        selectedChange.value = response.data.data;
+                        showAudit.value = false;
+                        showToast('审批完成');
+                        loadChangeRequests();
+                    } catch (error) {
+                        showToast(error.response?.data?.detail || '审批失败', 'error');
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                const getAuditResultLabel = (result) => {
+                    const labels = {
+                        'approved': '通过',
+                        'returned': '退回',
+                        'rejected': '驳回'
+                    };
+                    return labels[result] || result;
+                };
+
+                onMounted(() => {
+                    if (token.value) {
+                        isLoggedIn.value = true;
+                        loadChangeRequests();
+                        loadAvailableAppointments();
+                    }
+                });
+
+                return {
+                    loading,
+                    loggingIn,
+                    submitting,
+                    isLoggedIn,
+                    currentView,
+                    userInfo,
+                    userRole,
+                    userRoleLabel,
+                    canCreate,
+                    canAudit,
+                    loginForm,
+                    loginError,
+                    changeRequests,
+                    selectedChange,
+                    selectedAppointment,
+                    availableAppointments,
+                    filters,
+                    createForm,
+                    createError,
+                    showAudit,
+                    auditAction,
+                    auditForm,
+                    toastMessage,
+                    toastType,
+                    login,
+                    logout,
+                    loadChangeRequests,
+                    resetFilters,
+                    viewDetail,
+                    loadAvailableAppointments,
+                    loadAppointmentDetail,
+                    submitChangeRequest,
+                    showAuditModal,
+                    submitAudit,
+                    getAuditResultLabel
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

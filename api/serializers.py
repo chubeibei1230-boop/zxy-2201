@@ -4,7 +4,9 @@ from .models import (
     DEVIATION_LEVEL_CHOICES, ACCESSORY_STATUS_CHOICES,
     WARNING_LEVEL_CHOICES, WARNING_STATUS_CHOICES,
     ANOMALY_TYPE_CHOICES, ANOMALY_LEVEL_CHOICES,
-    ANOMALY_STATUS_CHOICES, ANOMALY_STEP_CHOICES
+    ANOMALY_STATUS_CHOICES, ANOMALY_STEP_CHOICES,
+    CHANGE_TYPE_CHOICES, CHANGE_STATUS_CHOICES,
+    CHANGE_AUDIT_RESULT_CHOICES
 )
 
 
@@ -274,3 +276,55 @@ class AnomalyFilterSerializer(serializers.Serializer):
     responsible_person_id = serializers.IntegerField(required=False)
     instrument_id = serializers.IntegerField(required=False)
     appointment_id = serializers.IntegerField(required=False)
+
+
+class ChangeRequestSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    change_no = serializers.CharField(max_length=50, read_only=True)
+    appointment_id = serializers.IntegerField()
+    applicant = serializers.CharField(max_length=50, required=False)
+    change_type = serializers.ChoiceField(choices=CHANGE_TYPE_CHOICES)
+    old_value = serializers.CharField(max_length=500)
+    new_value = serializers.CharField(max_length=500)
+    reason = serializers.CharField(max_length=1000)
+    expected_effective_date = serializers.DateField(required=False, allow_null=True)
+    status = serializers.ChoiceField(choices=CHANGE_STATUS_CHOICES, read_only=True)
+    related_anomaly_id = serializers.IntegerField(required=False, allow_null=True)
+    related_warning_id = serializers.IntegerField(required=False, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class ChangeRequestCreateSerializer(serializers.Serializer):
+    appointment_id = serializers.IntegerField()
+    change_type = serializers.ChoiceField(choices=CHANGE_TYPE_CHOICES)
+    old_value = serializers.CharField(max_length=500)
+    new_value = serializers.CharField(max_length=500)
+    reason = serializers.CharField(max_length=1000)
+    expected_effective_date = serializers.DateField(required=False, allow_null=True)
+    related_anomaly_id = serializers.IntegerField(required=False, allow_null=True)
+    related_warning_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class ChangeRequestAuditSerializer(serializers.Serializer):
+    change_request_id = serializers.IntegerField()
+    result = serializers.ChoiceField(choices=CHANGE_AUDIT_RESULT_CHOICES)
+    opinion = serializers.CharField(max_length=500)
+
+
+class ChangeAuditRecordSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    change_request_id = serializers.IntegerField()
+    auditor = serializers.CharField(max_length=50)
+    result = serializers.ChoiceField(choices=CHANGE_AUDIT_RESULT_CHOICES)
+    opinion = serializers.CharField(max_length=500)
+    audit_date = serializers.DateTimeField(read_only=True)
+
+
+class ChangeRequestFilterSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=CHANGE_STATUS_CHOICES, required=False)
+    change_type = serializers.ChoiceField(choices=CHANGE_TYPE_CHOICES, required=False)
+    instrument_id = serializers.IntegerField(required=False)
+    applicant = serializers.CharField(max_length=50, required=False)
+    appointment_id = serializers.IntegerField(required=False)
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)

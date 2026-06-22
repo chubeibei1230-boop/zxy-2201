@@ -15,6 +15,8 @@ from .database import (
     calibration_warnings_table,
     anomaly_tasks_table,
     anomaly_process_records_table,
+    change_requests_table,
+    change_audit_records_table,
     users_table,
     CalibrationAppointmentQuery,
     InstrumentQuery,
@@ -30,6 +32,8 @@ from .database import (
     CalibrationWarningQuery,
     AnomalyTaskQuery,
     AnomalyProcessRecordQuery,
+    ChangeRequestQuery,
+    ChangeAuditRecordQuery,
     UserQuery,
     now_str, today_str, generate_id
 )
@@ -177,7 +181,10 @@ def run_all_checks():
 
 
 def get_appointment_full_info(appointment_id):
-    apt = apt_table.get(CalibrationAppointmentQuery.id == appointment_id)
+    _aid = _safe_int(appointment_id)
+    if _aid is None:
+        return None
+    apt = apt_table.get(CalibrationAppointmentQuery.id == _aid)
     if not apt:
         return None
     inst = inst_table.get(InstrumentQuery.id == apt.get('instrument_id'))
@@ -187,9 +194,10 @@ def get_appointment_full_info(appointment_id):
     person = responsible_persons_table.get(ResponsiblePersonQuery.id == inst.get('responsible_person_id')) if inst else None
     rule = calibration_rules_table.get(CalibrationRuleQuery.id == inst.get('rule_id')) if inst else None
     precheck = precheck_records_table.get(PrecheckRecordQuery.id == apt.get('precheck_id')) if apt.get('precheck_id') else None
-    audits = audit_records_table.search(AuditRecordQuery.appointment_id == appointment_id)
-    calibrations = cr_table.search(CalibrationRecordQuery.appointment_id == appointment_id)
-    acceptances = acceptance_records_table.search(AcceptanceRecordQuery.appointment_id == appointment_id)
+    audits = audit_records_table.search(AuditRecordQuery.appointment_id == _aid)
+    calibrations = cr_table.search(CalibrationRecordQuery.appointment_id == _aid)
+    acceptances = acceptance_records_table.search(AcceptanceRecordQuery.appointment_id == _aid)
+    change_history = get_appointment_change_history(_aid)
     result = {
         **apt,
         'instrument': {**inst} if inst else None,
@@ -202,13 +210,14 @@ def get_appointment_full_info(appointment_id):
         'audits': [{**a} for a in audits],
         'calibrations': [{**c} for c in calibrations],
         'acceptances': [{**a} for a in acceptances],
+        'change_history': change_history,
         'warnings': [],
         'from_warning': apt.get('from_warning', False),
         'warning_id': apt.get('warning_id')
     }
-    if check_audit_timeout(appointment_id):
+    if check_audit_timeout(_aid):
         result['warnings'].append('审核超时')
-    if check_precheck_missing(appointment_id):
+    if check_precheck_missing(_aid):
         result['warnings'].append('前置检查缺失')
     return result
 
@@ -1182,3 +1191,269 @@ def update_appointment_status_with_anomaly(appointment_id):
         }
         apt_table.update(apt_update, doc_ids=[apt.doc_id])
         update_warning_status_from_appointment(_pid)
+
+
+def generate_change_no():
+    today = datetime.now().strftime('%y%m%d')
+    all_changes = change_requests_table.all()
+    today_changes = [c for c in all_changes if c.get('change_no', '').startswith('BG' + today)]
+    seq = len(today_changes) + 1
+    return f'BG{today}{seq:04d}'
+
+
+def create_change_request(appointment_id, change_type, old_value, new_value, reason,
+                          expected_effective_date=None, related_anomaly_id=None,
+                          related_warning_id=None, applicant=''):
+    _aid = _safe_int(appointment_id)
+    if _aid is None:
+        return None, '预约ID无效'
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == _aid)
+    if not apt:
+        return None, '校准预约不存在'
+
+    if apt.get('status') not in ['pending_audit', 'pending_calibration', 'calibrating', 'pending_acceptance']:
+        return None, '当前预约状态不允许发起变更申请'
+
+    if related_anomaly_id:
+        _anid = _safe_int(related_anomaly_id)
+        if _anid is not None:
+            anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _anid)
+            if not anomaly:
+                return None, '关联的异常任务不存在'
+            if anomaly.get('appointment_id') != _aid:
+                return None, '关联的异常任务不属于该预约'
+
+    if related_warning_id:
+        _wid = _safe_int(related_warning_id)
+        if _wid is not None:
+            warning = calibration_warnings_table.get(CalibrationWarningQuery.id == _wid)
+            if not warning:
+                return None, '关联的预警记录不存在'
+
+    change_id = generate_id(change_requests_table)
+    change_no = generate_change_no()
+
+    change_data = {
+        'id': change_id,
+        'change_no': change_no,
+        'appointment_id': _aid,
+        'applicant': applicant,
+        'change_type': change_type,
+        'old_value': old_value,
+        'new_value': new_value,
+        'reason': reason,
+        'expected_effective_date': str(expected_effective_date) if expected_effective_date else None,
+        'status': 'pending_audit',
+        'related_anomaly_id': related_anomaly_id,
+        'related_warning_id': related_warning_id,
+        'created_at': now_str()
+    }
+    change_requests_table.insert(change_data)
+
+    return get_change_request_full_info(change_id), None
+
+
+def get_change_request_full_info(change_request_id):
+    _cid = _safe_int(change_request_id)
+    if _cid is None:
+        return None
+
+    change = change_requests_table.get(ChangeRequestQuery.id == _cid)
+    if not change:
+        return None
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == change.get('appointment_id'))
+    inst = inst_table.get(InstrumentQuery.id == apt.get('instrument_id')) if apt else None
+    category = instrument_categories_table.get(InstrumentCategoryQuery.id == inst.get('category_id')) if inst else None
+    region = experiment_regions_table.get(ExperimentRegionQuery.id == inst.get('region_id')) if inst else None
+
+    audit_records = change_audit_records_table.search(
+        ChangeAuditRecordQuery.change_request_id == _cid
+    )
+    audit_records.sort(key=lambda x: x.get('audit_date', ''), reverse=True)
+
+    related_anomaly = None
+    if change.get('related_anomaly_id'):
+        related_anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == change.get('related_anomaly_id'))
+
+    related_warning = None
+    if change.get('related_warning_id'):
+        related_warning = calibration_warnings_table.get(CalibrationWarningQuery.id == change.get('related_warning_id'))
+
+    change_type_label = {
+        'expected_date': '预计日期调整',
+        'calibrator': '校准人员调整',
+        'instrument_status': '仪器状态调整',
+        'precheck_result': '前置检查结果调整',
+        'business_reason': '业务原因调整'
+    }.get(change.get('change_type'), change.get('change_type'))
+
+    status_label = {
+        'pending_audit': '待审核',
+        'approved': '已通过',
+        'returned': '已退回',
+        'rejected': '已驳回'
+    }.get(change.get('status'), change.get('status'))
+
+    return {
+        **change,
+        'change_type_label': change_type_label,
+        'status_label': status_label,
+        'appointment': {**apt} if apt else None,
+        'instrument': {**inst} if inst else None,
+        'category': {**category} if category else None,
+        'region': {**region} if region else None,
+        'audit_records': [{**a} for a in audit_records],
+        'related_anomaly': {**related_anomaly} if related_anomaly else None,
+        'related_warning': {**related_warning} if related_warning else None
+    }
+
+
+def list_change_requests(status=None, change_type=None, instrument_id=None,
+                         applicant=None, appointment_id=None, start_date=None, end_date=None,
+                         username=None, user_role=None):
+    changes = change_requests_table.all()
+
+    if status:
+        changes = [c for c in changes if c.get('status') == status]
+    if change_type:
+        changes = [c for c in changes if c.get('change_type') == change_type]
+    if applicant:
+        changes = [c for c in changes if applicant in c.get('applicant', '')]
+    if appointment_id:
+        _aid = _safe_int(appointment_id)
+        if _aid is not None:
+            changes = [c for c in changes if c.get('appointment_id') == _aid]
+    if start_date:
+        changes = [c for c in changes if c.get('created_at', '') >= start_date]
+    if end_date:
+        changes = [c for c in changes if c.get('created_at', '') <= end_date + ' 23:59:59']
+
+    if instrument_id:
+        _iid = _safe_int(instrument_id)
+        if _iid is not None:
+            filtered = []
+            for c in changes:
+                apt = apt_table.get(CalibrationAppointmentQuery.id == c.get('appointment_id'))
+                if apt and apt.get('instrument_id') == _iid:
+                    filtered.append(c)
+            changes = filtered
+
+    if user_role != 'admin' and username:
+        user_record = users_table.get(UserQuery.username == username)
+        user_name = user_record.get('name', username) if user_record else username
+        changes = [c for c in changes if c.get('applicant') == user_name]
+
+    result = []
+    for c in changes:
+        info = get_change_request_full_info(c.get('id'))
+        if info:
+            result.append(info)
+
+    result.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    return result
+
+
+def audit_change_request(change_request_id, result, opinion, auditor=''):
+    _cid = _safe_int(change_request_id)
+    if _cid is None:
+        return None, '变更申请ID无效'
+
+    change = change_requests_table.get(ChangeRequestQuery.id == _cid)
+    if not change:
+        return None, '变更申请不存在'
+
+    if change.get('status') != 'pending_audit':
+        return None, '当前状态不允许审核'
+
+    if result not in ['approved', 'returned', 'rejected']:
+        return None, '无效的审核结果'
+
+    audit_id = generate_id(change_audit_records_table)
+    audit_data = {
+        'id': audit_id,
+        'change_request_id': _cid,
+        'auditor': auditor,
+        'result': result,
+        'opinion': opinion,
+        'audit_date': now_str()
+    }
+    change_audit_records_table.insert(audit_data)
+
+    change_update = {
+        **change,
+        'status': result
+    }
+    change_requests_table.update(change_update, doc_ids=[change.doc_id])
+
+    if result == 'approved':
+        sync_change_to_appointment(_cid)
+
+    return get_change_request_full_info(_cid), None
+
+
+def sync_change_to_appointment(change_request_id):
+    _cid = _safe_int(change_request_id)
+    if _cid is None:
+        return
+
+    change = change_requests_table.get(ChangeRequestQuery.id == _cid)
+    if not change:
+        return
+
+    apt_id = change.get('appointment_id')
+    if not apt_id:
+        return
+
+    apt = apt_table.get(CalibrationAppointmentQuery.id == apt_id)
+    if not apt:
+        return
+
+    change_type = change.get('change_type')
+    new_value = change.get('new_value')
+
+    apt_update = {**apt}
+
+    if change_type == 'expected_date':
+        if check_duplicate_calibration(apt.get('instrument_id'), new_value, apt_id):
+            return
+        apt_update['expected_date'] = new_value
+    elif change_type == 'calibrator':
+        cal_records = cr_table.search(CalibrationRecordQuery.appointment_id == apt_id)
+        if cal_records:
+            latest_cal = sorted(cal_records, key=lambda x: x.get('created_at', ''), reverse=True)[0]
+            cal_update = {**latest_cal, 'calibrator': new_value}
+            cr_table.update(cal_update, doc_ids=[latest_cal.doc_id])
+    elif change_type == 'instrument_status':
+        inst = inst_table.get(InstrumentQuery.id == apt.get('instrument_id'))
+        if inst:
+            inst_update = {**inst, 'status': new_value}
+            inst_table.update(inst_update, doc_ids=[inst.doc_id])
+    elif change_type == 'precheck_result':
+        if apt.get('precheck_id'):
+            precheck = precheck_records_table.get(PrecheckRecordQuery.id == apt.get('precheck_id'))
+            if precheck:
+                precheck_update = {**precheck, 'overall_result': new_value.lower() == 'true'}
+                precheck_records_table.update(precheck_update, doc_ids=[precheck.doc_id])
+
+    apt_table.update(apt_update, doc_ids=[apt.doc_id])
+    update_warning_status_from_appointment(apt_id)
+
+
+def get_appointment_change_history(appointment_id):
+    _aid = _safe_int(appointment_id)
+    if _aid is None:
+        return []
+
+    changes = change_requests_table.search(
+        ChangeRequestQuery.appointment_id == _aid
+    )
+    changes.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
+    result = []
+    for c in changes:
+        info = get_change_request_full_info(c.get('id'))
+        if info:
+            result.append(info)
+    return result
