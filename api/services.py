@@ -598,13 +598,42 @@ def create_anomaly_task(appointment_id, anomaly_type, anomaly_level, title, desc
     if not inst:
         return None, '仪器不存在'
 
+    if calibration_record_id:
+        cal_record = cr_table.get(CalibrationRecordQuery.id == int(calibration_record_id))
+        if not cal_record:
+            return None, '校准记录不存在'
+        if cal_record.get('appointment_id') != int(appointment_id):
+            return None, '校准记录不属于该预约'
+
+    if acceptance_record_id:
+        acc_record = acceptance_records_table.get(AcceptanceRecordQuery.id == int(acceptance_record_id))
+        if not acc_record:
+            return None, '验收记录不存在'
+        if acc_record.get('appointment_id') != int(appointment_id):
+            return None, '验收记录不属于该预约'
+
     existing = anomaly_tasks_table.search(
         (AnomalyTaskQuery.appointment_id == int(appointment_id)) &
         (AnomalyTaskQuery.anomaly_type == anomaly_type) &
         (AnomalyTaskQuery.status.one_of(['registered', 'analyzing', 'rectifying', 'reviewing']))
     )
     if existing:
-        return existing[0], None
+        anomaly = existing[0]
+        need_update = False
+        update_data = {**anomaly}
+        if acceptance_record_id and anomaly.get('acceptance_record_id') != acceptance_record_id:
+            update_data['acceptance_record_id'] = acceptance_record_id
+            need_update = True
+        if calibration_record_id and not anomaly.get('calibration_record_id'):
+            update_data['calibration_record_id'] = calibration_record_id
+            need_update = True
+        if description and not anomaly.get('description'):
+            update_data['description'] = description
+            need_update = True
+        if need_update:
+            anomaly_tasks_table.update(update_data, doc_ids=[anomaly.doc_id])
+            return get_anomaly_full_info(anomaly.get('id')), None
+        return anomaly, None
 
     anomaly_id = generate_id(anomaly_tasks_table)
     anomaly_no = generate_anomaly_no()
@@ -732,7 +761,10 @@ def auto_create_anomaly_from_acceptance(acceptance_record_id):
 
 
 def get_anomaly_full_info(anomaly_id):
-    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    _aid = _safe_int(anomaly_id)
+    if _aid is None:
+        return None
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _aid)
     if not anomaly:
         return None
 
@@ -752,7 +784,7 @@ def get_anomaly_full_info(anomaly_id):
         acc_record = acceptance_records_table.get(AcceptanceRecordQuery.id == anomaly.get('acceptance_record_id'))
 
     process_records = anomaly_process_records_table.search(
-        AnomalyProcessRecordQuery.anomaly_task_id == int(anomaly_id)
+        AnomalyProcessRecordQuery.anomaly_task_id == _aid
     )
     process_records.sort(key=lambda x: x.get('operated_at', ''))
 
@@ -794,6 +826,13 @@ def get_anomaly_full_info(anomaly_id):
     }
 
 
+def _safe_int(value):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
 def list_anomaly_tasks(status=None, anomaly_level=None, anomaly_type=None,
                        region_id=None, category_id=None, responsible_person_id=None,
                        instrument_id=None, appointment_id=None):
@@ -806,36 +845,43 @@ def list_anomaly_tasks(status=None, anomaly_level=None, anomaly_type=None,
     if anomaly_type:
         anomalies = [a for a in anomalies if a.get('anomaly_type') == anomaly_type]
     if instrument_id:
-        anomalies = [a for a in anomalies if a.get('instrument_id') == int(instrument_id)]
+        _iid = _safe_int(instrument_id)
+        if _iid is not None:
+            anomalies = [a for a in anomalies if a.get('instrument_id') == _iid]
     if appointment_id:
-        anomalies = [a for a in anomalies if a.get('appointment_id') == int(appointment_id)]
+        _aid = _safe_int(appointment_id)
+        if _aid is not None:
+            anomalies = [a for a in anomalies if a.get('appointment_id') == _aid]
 
     if region_id:
-        region_id = int(region_id)
-        filtered = []
-        for a in anomalies:
-            inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
-            if inst and inst.get('region_id') == region_id:
-                filtered.append(a)
-        anomalies = filtered
+        _rid = _safe_int(region_id)
+        if _rid is not None:
+            filtered = []
+            for a in anomalies:
+                inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+                if inst and inst.get('region_id') == _rid:
+                    filtered.append(a)
+            anomalies = filtered
 
     if category_id:
-        category_id = int(category_id)
-        filtered = []
-        for a in anomalies:
-            inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
-            if inst and inst.get('category_id') == category_id:
-                filtered.append(a)
-        anomalies = filtered
+        _cid = _safe_int(category_id)
+        if _cid is not None:
+            filtered = []
+            for a in anomalies:
+                inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+                if inst and inst.get('category_id') == _cid:
+                    filtered.append(a)
+            anomalies = filtered
 
     if responsible_person_id:
-        responsible_person_id = int(responsible_person_id)
-        filtered = []
-        for a in anomalies:
-            inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
-            if inst and inst.get('responsible_person_id') == responsible_person_id:
-                filtered.append(a)
-        anomalies = filtered
+        _rpid = _safe_int(responsible_person_id)
+        if _rpid is not None:
+            filtered = []
+            for a in anomalies:
+                inst = inst_table.get(InstrumentQuery.id == a.get('instrument_id'))
+                if inst and inst.get('responsible_person_id') == _rpid:
+                    filtered.append(a)
+            anomalies = filtered
 
     result = []
     for a in anomalies:
@@ -848,7 +894,10 @@ def list_anomaly_tasks(status=None, anomaly_level=None, anomaly_type=None,
 
 
 def anomaly_do_analysis(anomaly_id, cause_analysis, root_cause='', operator='', operator_role=''):
-    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    _aid = _safe_int(anomaly_id)
+    if _aid is None:
+        return None, '异常任务ID无效'
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _aid)
     if not anomaly:
         return None, '异常任务不存在'
 
@@ -865,7 +914,7 @@ def anomaly_do_analysis(anomaly_id, cause_analysis, root_cause='', operator='', 
     record_id = generate_id(anomaly_process_records_table)
     process_record = {
         'id': record_id,
-        'anomaly_task_id': int(anomaly_id),
+        'anomaly_task_id': _aid,
         'step': 'analysis',
         'operator': operator,
         'operator_role': operator_role,
@@ -876,12 +925,15 @@ def anomaly_do_analysis(anomaly_id, cause_analysis, root_cause='', operator='', 
     }
     anomaly_process_records_table.insert(process_record)
 
-    return get_anomaly_full_info(anomaly_id), None
+    return get_anomaly_full_info(_aid), None
 
 
 def anomaly_do_rectification(anomaly_id, rectification_measures, responsible_person='',
                              completion_deadline=None, operator='', operator_role=''):
-    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    _aid = _safe_int(anomaly_id)
+    if _aid is None:
+        return None, '异常任务ID无效'
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _aid)
     if not anomaly:
         return None, '异常任务不存在'
 
@@ -898,7 +950,7 @@ def anomaly_do_rectification(anomaly_id, rectification_measures, responsible_per
     record_id = generate_id(anomaly_process_records_table)
     process_record = {
         'id': record_id,
-        'anomaly_task_id': int(anomaly_id),
+        'anomaly_task_id': _aid,
         'step': 'rectification',
         'operator': operator,
         'operator_role': operator_role,
@@ -909,11 +961,14 @@ def anomaly_do_rectification(anomaly_id, rectification_measures, responsible_per
     }
     anomaly_process_records_table.insert(process_record)
 
-    return get_anomaly_full_info(anomaly_id), None
+    return get_anomaly_full_info(_aid), None
 
 
 def anomaly_do_review(anomaly_id, review_opinion, review_result, operator='', operator_role=''):
-    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    _aid = _safe_int(anomaly_id)
+    if _aid is None:
+        return None, '异常任务ID无效'
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _aid)
     if not anomaly:
         return None, '异常任务不存在'
 
@@ -938,7 +993,7 @@ def anomaly_do_review(anomaly_id, review_opinion, review_result, operator='', op
     record_id = generate_id(anomaly_process_records_table)
     process_record = {
         'id': record_id,
-        'anomaly_task_id': int(anomaly_id),
+        'anomaly_task_id': _aid,
         'step': 'review',
         'operator': operator,
         'operator_role': operator_role,
@@ -949,11 +1004,14 @@ def anomaly_do_review(anomaly_id, review_opinion, review_result, operator='', op
     }
     anomaly_process_records_table.insert(process_record)
 
-    return get_anomaly_full_info(anomaly_id), None
+    return get_anomaly_full_info(_aid), None
 
 
 def anomaly_do_close(anomaly_id, conclusion, closing_remark='', operator='', operator_role=''):
-    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    _aid = _safe_int(anomaly_id)
+    if _aid is None:
+        return None, '异常任务ID无效'
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _aid)
     if not anomaly:
         return None, '异常任务不存在'
 
@@ -971,7 +1029,7 @@ def anomaly_do_close(anomaly_id, conclusion, closing_remark='', operator='', ope
     record_id = generate_id(anomaly_process_records_table)
     process_record = {
         'id': record_id,
-        'anomaly_task_id': int(anomaly_id),
+        'anomaly_task_id': _aid,
         'step': 'close',
         'operator': operator,
         'operator_role': operator_role,
@@ -982,13 +1040,16 @@ def anomaly_do_close(anomaly_id, conclusion, closing_remark='', operator='', ope
     }
     anomaly_process_records_table.insert(process_record)
 
-    sync_appointment_status_from_anomaly(int(anomaly_id))
+    sync_appointment_status_from_anomaly(_aid)
 
-    return get_anomaly_full_info(anomaly_id), None
+    return get_anomaly_full_info(_aid), None
 
 
 def sync_appointment_status_from_anomaly(anomaly_id):
-    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == int(anomaly_id))
+    _aid = _safe_int(anomaly_id)
+    if _aid is None:
+        return
+    anomaly = anomaly_tasks_table.get(AnomalyTaskQuery.id == _aid)
     if not anomaly:
         return
 
@@ -1102,12 +1163,15 @@ def get_anomaly_dashboard():
 
 
 def update_appointment_status_with_anomaly(appointment_id):
-    apt = apt_table.get(CalibrationAppointmentQuery.id == int(appointment_id))
+    _pid = _safe_int(appointment_id)
+    if _pid is None:
+        return
+    apt = apt_table.get(CalibrationAppointmentQuery.id == _pid)
     if not apt:
         return
 
     open_anomalies = anomaly_tasks_table.search(
-        (AnomalyTaskQuery.appointment_id == int(appointment_id)) &
+        (AnomalyTaskQuery.appointment_id == _pid) &
         (AnomalyTaskQuery.status.one_of(['registered', 'analyzing', 'rectifying', 'reviewing']))
     )
 
@@ -1117,4 +1181,4 @@ def update_appointment_status_with_anomaly(appointment_id):
             'status': 'deviation_pending'
         }
         apt_table.update(apt_update, doc_ids=[apt.doc_id])
-        update_warning_status_from_appointment(int(appointment_id))
+        update_warning_status_from_appointment(_pid)

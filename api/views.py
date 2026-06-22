@@ -757,7 +757,11 @@ class CalibrationRecordView(APIView):
         }
         calibration_records_table.insert(data)
 
-        if deviation_level in ['minor', 'major', 'critical']:
+        accessory_status = serializer.validated_data['accessory_status']
+        has_deviation = deviation_level in ['minor', 'major', 'critical']
+        has_accessory_issue = accessory_status in ['damaged', 'missing']
+
+        if has_deviation or has_accessory_issue:
             new_status = 'deviation_pending'
         else:
             new_status = 'pending_acceptance'
@@ -797,6 +801,18 @@ class AcceptanceView(APIView):
         if apt.get('status') not in ['pending_acceptance', 'deviation_pending']:
             return Response({'detail': '当前状态不允许验收'}, status=status.HTTP_400_BAD_REQUEST)
 
+        acceptance_result = serializer.validated_data['result']
+        if acceptance_result:
+            open_anomalies = anomaly_tasks_table.search(
+                (AnomalyTaskQuery.appointment_id == appointment_id) &
+                (AnomalyTaskQuery.status.one_of(['registered', 'analyzing', 'rectifying', 'reviewing']))
+            )
+            if open_anomalies:
+                return Response(
+                    {'detail': f'该预约存在{len(open_anomalies)}条未结案的异常任务，请先完成异常处置后再验收'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         obj_id = generate_id(acceptance_records_table)
         user_record = users_table.get(UserQuery.username == request.user.username)
         acceptor_name = user_record.get('name', request.user.username)
@@ -811,7 +827,6 @@ class AcceptanceView(APIView):
         }
         acceptance_records_table.insert(data)
 
-        acceptance_result = serializer.validated_data['result']
         if acceptance_result:
             new_status = 'closed'
         else:

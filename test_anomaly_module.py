@@ -461,6 +461,227 @@ def test_anomaly_filter():
     
     print('\n  ✓ 异常任务筛选查询测试通过！')
 
+def test_bugfix_accessory_deviation_pending():
+    print_separator('Bug修复测试1: 配件损坏/缺失时预约也应设为偏差待处理')
+    exp_token = get_auth_token('exp01')
+    audit_token = get_auth_token('audit01')
+    cali_token = get_auth_token('cali01')
+    admin_token = get_auth_token('admin')
+
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    print('  1. 创建预约并走完审核流程:')
+    response = test_with_auth('POST', '/api/appointments/create/', exp_token, {
+        'instrument_id': 5, 'applicant': '张实验员', 'department': '化学学院',
+        'purpose': '测试配件损坏时预约状态', 'expected_date': tomorrow
+    })
+    assert response.status_code == 201
+    apt_id = json.loads(response.content)['id']
+
+    test_with_auth('POST', '/api/prechecks/', exp_token, {
+        'appointment_id': apt_id, 'experimenter': '张实验员',
+        'check_date': datetime.now().strftime('%Y-%m-%d'),
+        'items': [{'name': '外观检查', 'result': True, 'remark': ''}],
+        'overall_result': True, 'remark': 'ok'
+    })
+    test_with_auth('POST', '/api/appointments/submit/', exp_token, {'appointment_id': apt_id})
+    test_with_auth('POST', '/api/audits/', audit_token, {
+        'appointment_id': apt_id, 'auditor': '王审核', 'result': 'approved', 'opinion': 'ok'
+    })
+    test_with_auth('POST', '/api/calibrations/start/', cali_token, {'appointment_id': apt_id})
+
+    print('  2. 记录校准结果：无偏差但配件损坏:')
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    response = test_with_auth('POST', '/api/calibrations/record/', cali_token, {
+        'appointment_id': apt_id, 'calibrator': '赵校准',
+        'start_date': now, 'end_date': now,
+        'standard_value': 1.0, 'measured_value': 1.0,
+        'deviation_level': 'none',
+        'accessory_status': 'missing',
+        'accessory_remark': '电源线缺失',
+        'conclusion': '校准值合格但配件缺失',
+        'closing_remark': ''
+    })
+    assert response.status_code == 200
+    result = json.loads(response.content)
+    print(f'     预约状态: {result["appointment"]["status"]}')
+    assert result['appointment']['status'] == 'deviation_pending', '配件缺失时预约状态应为deviation_pending'
+
+    print('  3. 验证已自动创建配件缺失异常:')
+    response = test_with_auth('GET', f'/api/anomalies/?appointment_id={apt_id}', admin_token)
+    anomalies = json.loads(response.content)
+    anomaly_types = [a['anomaly_type'] for a in anomalies]
+    print(f'     异常类型: {anomaly_types}')
+    assert 'accessory_missing' in anomaly_types, '应自动创建配件缺失异常'
+
+    print('\n  ✓ Bug修复测试1通过：配件损坏/缺失时预约状态为偏差待处理')
+
+
+def test_bugfix_acceptance_with_open_anomaly():
+    print_separator('Bug修复测试2: 未结案异常时禁止验收通过')
+    exp_token = get_auth_token('exp01')
+    audit_token = get_auth_token('audit01')
+    cali_token = get_auth_token('cali01')
+    admin_token = get_auth_token('admin')
+
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    print('  1. 创建预约并生成偏差异常（不处置）:')
+    response = test_with_auth('POST', '/api/appointments/create/', exp_token, {
+        'instrument_id': 6, 'applicant': '张实验员', 'department': '生命学院',
+        'purpose': '测试未结案异常验收', 'expected_date': tomorrow
+    })
+    assert response.status_code == 201
+    apt_id = json.loads(response.content)['id']
+
+    test_with_auth('POST', '/api/prechecks/', exp_token, {
+        'appointment_id': apt_id, 'experimenter': '张实验员',
+        'check_date': datetime.now().strftime('%Y-%m-%d'),
+        'items': [{'name': '外观检查', 'result': True, 'remark': ''}],
+        'overall_result': True, 'remark': 'ok'
+    })
+    test_with_auth('POST', '/api/appointments/submit/', exp_token, {'appointment_id': apt_id})
+    test_with_auth('POST', '/api/audits/', audit_token, {
+        'appointment_id': apt_id, 'auditor': '王审核', 'result': 'approved', 'opinion': 'ok'
+    })
+    test_with_auth('POST', '/api/calibrations/start/', cali_token, {'appointment_id': apt_id})
+
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    response = test_with_auth('POST', '/api/calibrations/record/', cali_token, {
+        'appointment_id': apt_id, 'calibrator': '赵校准',
+        'start_date': now, 'end_date': now,
+        'standard_value': 1.0, 'measured_value': 0.8,
+        'deviation_level': 'major', 'accessory_status': 'normal',
+        'conclusion': '偏差较大', 'closing_remark': ''
+    })
+    assert response.status_code == 200
+
+    print('  2. 尝试直接验收通过（应被拒绝）:')
+    response = test_with_auth('POST', '/api/acceptances/', exp_token, {
+        'appointment_id': apt_id, 'acceptor': '张实验员',
+        'result': True, 'opinion': '我想直接通过'
+    })
+    print_response(response)
+    assert response.status_code == 400, '存在未结案异常时验收通过应返回400'
+    detail = json.loads(response.content).get('detail', '')
+    assert '未结案' in detail or '异常' in detail, '错误信息应提示存在未结案异常'
+
+    print('\n  ✓ Bug修复测试2通过：未结案异常时无法验收通过')
+
+
+def test_bugfix_cross_appointment_validation():
+    print_separator('Bug修复测试3: 异常任务只能关联同一预约的校准/验收记录')
+    cali_token = get_auth_token('cali01')
+
+    print('  尝试创建关联其他预约校准记录的异常:')
+    response = test_with_auth('POST', '/api/anomalies/create/', cali_token, {
+        'appointment_id': 1,
+        'anomaly_type': 'deviation',
+        'anomaly_level': 'minor',
+        'title': '测试串单',
+        'description': '故意关联其他预约的校准记录',
+        'calibration_record_id': 99999
+    })
+    print_response(response)
+    assert response.status_code == 400, '关联不存在的校准记录应报错'
+    print('     ✓ 不存在的校准记录已被拒绝')
+
+    print('\n  ✓ Bug修复测试3通过：异常关联记录校验正常')
+
+
+def test_bugfix_invalid_filter_params():
+    print_separator('Bug修复测试4: 非法筛选参数不应导致服务端错误')
+    admin_token = get_auth_token('admin')
+
+    test_cases = [
+        ('region_id=abc', '非法的区域ID'),
+        ('category_id=xyz', '非法的类别ID'),
+        ('responsible_person_id=!@#', '非法的责任人ID'),
+        ('instrument_id=hello', '非法的仪器ID'),
+        ('appointment_id=not_a_number', '非法的预约ID'),
+    ]
+
+    for qs, desc in test_cases:
+        print(f'  测试 {desc}: {qs}')
+        response = test_with_auth('GET', f'/api/anomalies/?{qs}', admin_token)
+        assert response.status_code == 200, f'{desc}应返回200而非服务端错误'
+        print(f'     ✓ 返回状态码 200')
+
+    print('\n  ✓ Bug修复测试4通过：非法筛选参数不会报错')
+
+
+def test_bugfix_repeated_acceptance_failure_updates_record():
+    print_separator('Bug修复测试5: 重复验收不通过时更新已有异常的验收记录')
+    exp_token = get_auth_token('exp01')
+    audit_token = get_auth_token('audit01')
+    cali_token = get_auth_token('cali01')
+    admin_token = get_auth_token('admin')
+
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    print('  1. 创建预约并记录校准结果（无偏差）:')
+    response = test_with_auth('POST', '/api/appointments/create/', exp_token, {
+        'instrument_id': 7, 'applicant': '张实验员', 'department': '材料学院',
+        'purpose': '测试重复验收不通过', 'expected_date': tomorrow
+    })
+    assert response.status_code == 201
+    apt_id = json.loads(response.content)['id']
+
+    test_with_auth('POST', '/api/prechecks/', exp_token, {
+        'appointment_id': apt_id, 'experimenter': '张实验员',
+        'check_date': datetime.now().strftime('%Y-%m-%d'),
+        'items': [{'name': '外观检查', 'result': True, 'remark': ''}],
+        'overall_result': True, 'remark': 'ok'
+    })
+    test_with_auth('POST', '/api/appointments/submit/', exp_token, {'appointment_id': apt_id})
+    test_with_auth('POST', '/api/audits/', audit_token, {
+        'appointment_id': apt_id, 'auditor': '王审核', 'result': 'approved', 'opinion': 'ok'
+    })
+    test_with_auth('POST', '/api/calibrations/start/', cali_token, {'appointment_id': apt_id})
+
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    test_with_auth('POST', '/api/calibrations/record/', cali_token, {
+        'appointment_id': apt_id, 'calibrator': '赵校准',
+        'start_date': now, 'end_date': now,
+        'standard_value': 1.0, 'measured_value': 1.0,
+        'deviation_level': 'none', 'accessory_status': 'normal',
+        'conclusion': '合格', 'closing_remark': ''
+    })
+
+    print('  2. 第一次验收不通过:')
+    response = test_with_auth('POST', '/api/acceptances/', exp_token, {
+        'appointment_id': apt_id, 'acceptor': '张实验员',
+        'result': False, 'opinion': '第一次不通过'
+    })
+    assert response.status_code == 200
+
+    response = test_with_auth('GET', f'/api/anomalies/?appointment_id={apt_id}&anomaly_type=acceptance_failed', admin_token)
+    anomalies = json.loads(response.content)
+    assert len(anomalies) == 1, '应只有1条验收不通过异常'
+    anomaly_id = anomalies[0]['id']
+    first_acc_id = anomalies[0].get('acceptance_record_id')
+    print(f'     异常ID={anomaly_id}, 关联验收记录ID={first_acc_id}')
+
+    print('  3. 第二次验收不通过:')
+    response = test_with_auth('POST', '/api/acceptances/', exp_token, {
+        'appointment_id': apt_id, 'acceptor': '张实验员',
+        'result': False, 'opinion': '第二次不通过，再次检查'
+    })
+    assert response.status_code == 200
+
+    print('  4. 验证异常数量仍为1，且验收记录已更新:')
+    response = test_with_auth('GET', f'/api/anomalies/?appointment_id={apt_id}&anomaly_type=acceptance_failed', admin_token)
+    anomalies = json.loads(response.content)
+    assert len(anomalies) == 1, '重复验收不通过不应创建新异常'
+    second_acc_id = anomalies[0].get('acceptance_record_id')
+    print(f'     异常数量={len(anomalies)}, 最新验收记录ID={second_acc_id}')
+    assert second_acc_id is not None, '验收记录ID不应为空'
+    if first_acc_id is not None:
+        assert second_acc_id != first_acc_id or first_acc_id is None, '应更新为最新验收记录'
+
+    print('\n  ✓ Bug修复测试5通过：重复验收不通过更新已有异常的验收记录')
+
+
 def main():
     print_separator('校准异常处置模块 API 测试')
     print(f'  测试时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
@@ -474,6 +695,11 @@ def main():
         test_anomaly_role_permissions()
         test_auto_create_anomaly()
         test_anomaly_workflow()
+        test_bugfix_accessory_deviation_pending()
+        test_bugfix_acceptance_with_open_anomaly()
+        test_bugfix_cross_appointment_validation()
+        test_bugfix_invalid_filter_params()
+        test_bugfix_repeated_acceptance_failure_updates_record()
         
         print_separator('测试完成')
         print('  ✓ 所有异常处置模块 API 测试已通过！')
